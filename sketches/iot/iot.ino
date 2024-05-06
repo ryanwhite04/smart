@@ -41,9 +41,18 @@ void executeCommand() {
 }
 
 // features need to be implemented
-void setLightColor(int r, int g, int b);
-void setOptionsNumber(int num);
-void submitAnswer(int idx);
+void setLightColor(int r, int g, int b) {
+
+}
+void setOptionsNumber(int num) {
+
+}
+void submitAnswer(int idx) {
+  String s = "a:";
+  s += idx;
+
+  mesh.sendBroadcast(s);
+}
 
 // Needed for painless library
 void receivedCallback(uint32_t from, String &msg) {
@@ -54,10 +63,10 @@ void receivedCallback(uint32_t from, String &msg) {
     Serial.printf("a:%u:%s", from, cp.params[0]);
   }
   if (cp.command == "l") {
-    setLightColor(std::stoi(cp.params[0]), std::stoi(cp.params[1]), std::stoi(cp.params[2]));
+    setLightColor(cp.params[0].toInt(), cp.params[1].toInt(), cp.params[2].toInt());
   }
   if (cp.command == "o") {
-    setOptionsNumber(std::stoi(cp.params[0]));
+    setOptionsNumber(cp.params[0].toInt());
   }
   if (cp.command == "id") {
     // only when we use p2p communications
