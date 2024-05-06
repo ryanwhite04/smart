@@ -40,6 +40,7 @@ void executeCommand() {
     CommandAndParams cp(command, Serial);
     Serial.println(cp.command);
     cp.print();
+    mesh.sendBroadcast(command);
   }
   taskExecuteCommand.setInterval(random(TASK_SECOND * 0.5, TASK_SECOND * 1));
 }
