@@ -40,6 +40,10 @@ void executeCommand() {
   taskExecuteCommand.setInterval(random(TASK_SECOND * 0.5, TASK_SECOND * 1));
 }
 
+// features need to be implemented
+void setLightColor(int r, int g, int b);
+void setOptionsNumber(int num);
+void submitAnswer(int idx);
 
 // Needed for painless library
 void receivedCallback(uint32_t from, String &msg) {
@@ -50,12 +54,10 @@ void receivedCallback(uint32_t from, String &msg) {
     Serial.printf("a:%u:%s", from, cp.params[0]);
   }
   if (cp.command == "l") {
-    // set color!
-    // hex code at params[0]
+    setLightColor(std::stoi(cp.params[0]), std::stoi(cp.params[1]), std::stoi(cp.params[2]));
   }
   if (cp.command == "o") {
-    // set options
-    // answer length at params[0] (as string)
+    setOptionsNumber(std::stoi(cp.params[0]));
   }
   if (cp.command == "id") {
     // only when we use p2p communications
