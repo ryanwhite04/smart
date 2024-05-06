@@ -33,13 +33,8 @@ Task taskExecuteCommand(TASK_SECOND * 1, TASK_FOREVER, &executeCommand);
 void executeCommand() {
   String command;
   while (Serial.available()) {
-    command = Serial.readString();  // read the incoming data as string/home/hitomi/Arduino/basic/command.c /home/hitomi/Arduino/basic/command.h
-    Serial.println("Are you OK?");
-    Serial.println(command);
-
-    CommandAndParams cp(command, Serial);
-    Serial.println(cp.command);
-    cp.print();
+    command = Serial.readString();
+    CommandAndParams cp(command);
     mesh.sendBroadcast(command);
   }
   taskExecuteCommand.setInterval(random(TASK_SECOND * 0.5, TASK_SECOND * 1));
@@ -49,6 +44,22 @@ void executeCommand() {
 // Needed for painless library
 void receivedCallback(uint32_t from, String &msg) {
   Serial.printf("startHere: Received from %u msg=%s\n", from, msg.c_str());
+  CommandAndParams cp(msg);
+  if (cp.command == "a") {
+    // submitting students' answers
+    Serial.printf("a:%u:%s", from, cp.params[0]);
+  }
+  if (cp.command == "l") {
+    // set color!
+    // hex code at params[0]
+  }
+  if (cp.command == "o") {
+    // set options
+    // answer length at params[0] (as string)
+  }
+  if (cp.command == "id") {
+    // only when we use p2p communications
+  }
 }
 
 void newConnectionCallback(uint32_t nodeId) {

@@ -17,14 +17,12 @@ struct CommandAndParams {
   String params[MAX_PARAMS];  //!< Up to MAX_PARAMS parsed parameters are stored here.
   uint8_t paramCount;         //!< Number of parameters actually parsed.
 
-  Stream& serialOut;  //!< Debug output is printed here.
-
   /**
      * Ctor.
      * 
      * \param rawCommand  A raw string to parse for a command and parameters.
      */
-  CommandAndParams(String rawCommand, Stream& serialOut);
+  CommandAndParams(String rawCommand);
 
   /**
      * Prints the parsed command and params.
