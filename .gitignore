@@ -1,0 +1,4 @@
+server/*.pem
+venv
+.vscode
+.DS_Store
