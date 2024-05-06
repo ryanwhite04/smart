@@ -1,0 +1,3 @@
+server/*.pem
+venv
+.vscode
