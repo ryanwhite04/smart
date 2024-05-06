@@ -6,12 +6,23 @@
 //
 //
 //************************************************************
+
+#include <SPI.h>
+#include <Wire.h>
 #include "painlessMesh.h"
 #include "command.hpp"
-
+#include "Adafruit_seesaw.h"
+#include <seesaw_neopixel.h>
 #define MESH_PREFIX "whateverYouLike"
 #define MESH_PASSWORD "somethingSneaky"
 #define MESH_PORT 5555
+
+// Set up encoder
+#define SS_SWITCH        24
+#define SS_NEOPIX        6
+#define SEESAW_ADDR          0x36
+Adafruit_seesaw ss;
+seesaw_NeoPixel sspixel = seesaw_NeoPixel(1, SS_NEOPIX, NEO_GRB + NEO_KHZ800);
 
 Scheduler userScheduler;  // to control your personal task
 painlessMesh mesh;
@@ -42,7 +53,9 @@ void executeCommand() {
 
 // features need to be implemented
 void setLightColor(int r, int g, int b) {
-
+  uint32_t color = sspixel.Color(r,  g, b);
+  sspixel.setPixelColor(0, color);
+  sspixel.show();
 }
 void setOptionsNumber(int num) {
 
