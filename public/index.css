@@ -1,0 +1,24 @@
+
+#devices, #users, #questions {
+    padding: 1em;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+#devices {
+    background: #AAFFFF;
+}
+
+#users {
+    background: #FFAAFF;
+}
+
+#questions {
+    background: #FFFFAA;
+}
+
+smart-user, smart-question {
+    margin: 1em;
+    background: #DDDDDD;
+}

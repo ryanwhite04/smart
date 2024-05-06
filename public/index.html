@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ESP32S3 Web Serial Example</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <div id="devices">
+        <button id="add-device">Add Device</button>
+        <smart-device id="device"></smart-device>
+    </div>
+    <div id="users">
+        <button id="add-user">Add User</button>
+        <smart-user name="Ryan White" teacher></smart-user>
+        <smart-user name="John Doe"></smart-user>
+        <smart-user name="Jane Doe"></smart-user>
+    </div>
+    <div id="questions">
+        <button id="add-question">Add Question</button>
+        <smart-question>
+            <p slot="question">What is the capital of France?</p>
+            <p slot="option">Paris</p>
+            <p slot="option">London</p>
+            <p slot="option">Berlin</p>
+        </smart-question>
+        <smart-question>
+            <p slot="question">What is the capital of Germany?</p>
+            <p slot="option">Paris</p>
+            <p slot="option">London</p>
+            <p slot="option">Berlin</p>
+        </smart-question>
+        <smart-question>
+            <p slot="question">What is the capital of England?</p>
+            <p slot="option">Paris</p>
+            <p slot="option">London</p>
+            <p slot="option">Berlin</p>
+        </smart-question>
+    </div>
+    <script src="index.js" type="module"></script>
+</body>
+</html>
