@@ -23,6 +23,8 @@
 #define SEESAW_ADDR          0x36
 Adafruit_seesaw ss;
 seesaw_NeoPixel sspixel = seesaw_NeoPixel(1, SS_NEOPIX, NEO_GRB + NEO_KHZ800);
+int32_t encoder_position;
+bool prev_button = 0;
 
 Scheduler userScheduler;  // to control your personal task
 painlessMesh mesh;
@@ -57,8 +59,10 @@ void setLightColor(int r, int g, int b) {
   sspixel.setPixelColor(0, color);
   sspixel.show();
 }
-void setOptionsNumber(int num) {
 
+int options = 4;
+void setOptionsNumber(int num) {
+  options = num;
 }
 void submitAnswer(int idx) {
   String s = "a:";
@@ -124,4 +128,17 @@ void setup() {
 void loop() {
   // it will run the user scheduler as well
   mesh.update();
+  
+
+
+  // int32_t new_position = ss.getEncoderPosition();  
+  // if (encoder_position != new_position) {
+  //   encoder_position = new_position;      // and save for next round
+  // }
+  // bool button = !ss.digitalRead(SS_SWITCH);
+  // if (button != prev_button) {
+  //   int index = encoder_position % options;
+  //   prev_button = button;
+  //   submitAnswer(index);
+  // }
 }
