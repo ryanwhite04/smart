@@ -51,16 +51,27 @@ class SmartQuestion extends LitElement {
     super.connectedCallback();
     if (this.uuid) {
       this.load();
-      this.save();
+      this.addToLocalStorage();
+    }
+  }
+
+  addToLocalStorage() {
+    const questions = JSON.parse(localStorage.getItem('questions')) || [];
+    if (!questions.includes(this.uuid)) {
+      questions.push(this.uuid);
+      localStorage.setItem('questions', JSON.stringify(questions));
     }
   }
 
   load() {
-    const data = JSON.parse(localStorage.getItem(this.uuid));
-    if (data) {
-        for (const key in data) {
-            this[key] = data[key];
-        }
+    const questionData = JSON.parse(localStorage.getItem(this.uuid));
+    if (questionData) {
+      this.text = questionData.text;
+      this.options = questionData.options;
+      this.responses = questionData.responses || {};
+      this.opened = questionData.opened || false;
+      this.replies = questionData.replies || 0;
+      this.revealResults = questionData.revealResults || false;
     }
   }
 
@@ -80,12 +91,9 @@ class SmartQuestion extends LitElement {
   addOption() {
     const option = window.prompt("Enter a new option");
     if (option) {
-      const p = document.createElement("p");
-      p.textContent = option;
-      p.setAttribute("slot", "option");
       this.options.push(option);
-      this.appendChild(p);
       this.save();
+      this.requestUpdate();
     }
   }
 
@@ -127,36 +135,23 @@ class SmartQuestion extends LitElement {
   render() {
     const results = this.getResults();
     return html`
-      <slot name="question">${this.text}</slot>
-      <button @click="${this.addOption}">Add option</button>
-      <slot name="option"></slot>
-      ${
-      this.opened
-        ? html`
-        <p>Replies: ${this.replies}</p>
-        ${
-          this.revealResults
-            ? html`
-          ${
-              this.options.map((option, index) =>
-                html`
-            <div class="option">
-              <label>${option}</label>
-              <span class="count">(${results[index]})</span>
-            </div>
-          `
-              )
-            }
-        `
-            : ""
-        }
-        <button @click="${this.close}">Close</button>
-      `
-        : html`
-        <button @click="${this.open}">Open</button>
-      `
-    }
-      <p>Number of options: ${this.options.length}</p>
+      <div>
+        <p>${this.text}</p>
+        <button @click="${this.addOption}">Add option</button>
+        ${this.opened ? html`
+          <p>Replies: ${this.replies}</p>
+          <button @click="${this.close}">Close</button>
+        ` : html`
+          <button @click="${this.open}">Open</button>
+        `}
+        <p>Number of options: ${this.options.length}</p>
+        ${this.options.map((option, index) => html`
+        <div class="option">
+          <label>${option}</label>
+          ${this.revealResults ? html`<span class="count">(${results[index]})</span>` : ''}
+        </div>
+      `)}
+      </div>
     `;
   }
 
