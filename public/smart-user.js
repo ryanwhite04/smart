@@ -3,11 +3,11 @@ import { css, html, LitElement } from "https://esm.sh/lit@3.1.2";
 class SmartUser extends LitElement {
   static get properties() {
     return {
+      uuid: { type: String },
       name: { type: String },
       teacher: { type: Boolean },
-      uuid: { type: String },
-      connected: { type: Boolean },
       deviceId: { type: String },
+      connected: { type: Boolean }
     };
   }
 
@@ -25,75 +25,73 @@ class SmartUser extends LitElement {
 
   constructor() {
     super();
-    this.name = "";
+    this.uuid = '';
+    this.name = '';
     this.teacher = false;
-    this.uuid = crypto.randomUUID();
-    this.connected = false;
     this.deviceId = null;
+    this.connected = false;
     this.port = null;
     this.reader = null;
     this.writer = null;
   }
 
-  async connectToDevice() {
-    if (this.connected) {
-      await this.disconnectFromDevice();
-      return;
-    }
-    try {
-      this.port = await navigator.serial.requestPort();
-      await this.port.open({ baudRate: 115200 });
-      this.reader = this.port.readable.getReader();
-      this.writer = this.port.writable.getWriter();
-      this.connected = true;
-      this.getDeviceId();
-    } catch (error) {
-      console.error("Connection failed:", error);
+  connectedCallback() {
+    super.connectedCallback();
+    if (this.uuid) {
+      this.loadUserData();
+      this.addToLocalStorage();
     }
   }
 
-  async disconnectFromDevice() {
-    if (this.reader) {
-      await this.reader.cancel();
-      this.reader.releaseLock();
-      this.reader = null;
+  addToLocalStorage() {
+    const users = JSON.parse(localStorage.getItem('users')) || [];
+    if (!users.includes(this.uuid)) {
+      users.push(this.uuid);
+      localStorage.setItem('users', JSON.stringify(users));
     }
-    if (this.writer) {
-      await this.writer.close();
-      this.writer.releaseLock();
-      this.writer = null;
-    }
-    if (this.port) {
-      await this.port.close();
-      this.port = null;
-    }
-    this.connected = false;
-    this.deviceId = null;
+    this.saveData();
   }
 
-  async getDeviceId() {
-    try {
-      const command = new TextEncoder().encode("GET_ID\n");
-      await this.writer.write(command);
-      const { value } = await this.reader.read();
-      this.deviceId = new TextDecoder().decode(value).trim();
-    } catch (error) {
-      console.error("Failed to get device ID:", error);
+  saveData() {
+    const userData = {
+      uuid: this.uuid,
+      name: this.name,
+      teacher: this.teacher,
+      deviceId: this.deviceId
+    };
+    localStorage.setItem(this.uuid, JSON.stringify(userData));
+  }
+
+  loadUserData() {
+    const userData = JSON.parse(localStorage.getItem(this.uuid));
+    if (userData) {
+      this.name = userData.name;
+      this.teacher = userData.teacher;
+      this.deviceId = userData.deviceId;
     }
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    localStorage.removeItem(this.uuid);
+    const users = JSON.parse(localStorage.getItem('users')) || [];
+    const updatedUsers = users.filter(uuid => uuid !== this.uuid);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
   }
 
   render() {
     return html`
         <div>
-          <input type="text" placeholder="Name" @input="${(e) =>
-      this.name = e.target.value}" .value="${this.name}">
+          <input type="text" placeholder="Name" @input="${(e) => {
+            this.name = e.target.value;
+            this.saveData();
+          }}" .value="${this.name}">
           <label>
-            <input type="checkbox" @change="${(e) =>
-      this.teacher = e.target.checked}" ?checked="${this.teacher}"> Teacher
+            <input type="checkbox" @change="${(e) => {
+              this.teacher = e.target.checked;
+              this.saveData();
+            }}" ?checked="${this.teacher}"> Teacher
           </label>
-          <button @click="${this.connectToDevice}">${
-      this.connected ? "Disconnect" : "Connect"
-    }</button>
           <button @click="${this.remove}">Remove</button>
           <p>Device ID: ${this.deviceId || "Not Connected"}</p>
         </div>
@@ -101,8 +99,15 @@ class SmartUser extends LitElement {
   }
 
   remove() {
-    this.dispatchEvent(new CustomEvent("remove-user", { detail: this }));
+    this.dispatchEvent(new CustomEvent("remove-user", { detail: this.uuid }));
     this.remove();
   }
+
+  firstUpdated() {
+    if (this.uuid) {
+      this.loadUserData();
+    }
+  }
 }
+
 customElements.define("smart-user", SmartUser);

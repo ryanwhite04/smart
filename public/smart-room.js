@@ -1,15 +1,17 @@
 import { css, html, LitElement } from "https://esm.sh/lit@3.1.2";
 
 class SmartRoom extends LitElement {
-    static get properties() {
-      return {
-        name: { type: String },
-        users: { type: Array },
-      };
-    }
-  
-    static get styles() {
-      return css`
+  static get properties() {
+    return {
+      uuid: { type: String },
+      name: { type: String },
+      users: { type: Array },
+      active: { type: Boolean },
+    };
+  }
+
+  static get styles() {
+    return css`
         :host {
           display: block;
           margin: 1em 0;
@@ -44,37 +46,89 @@ class SmartRoom extends LitElement {
           background-color: #45a049;
         }
       `;
+  }
+
+  constructor() {
+    super();
+    this.uuid = this.uuid || crypto.randomUUID();
+    this.name = '';
+    this.users = [];
+    this.active = false;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    if (this.uuid) {
+      this.loadRoomData();
+      this.addToLocalStorage();
     }
-  
-    constructor() {
-      super();
-      this.name = '';
-      this.users = [];
+  }
+
+  addToLocalStorage() {
+    const rooms = JSON.parse(localStorage.getItem('rooms')) || [];
+    if (!rooms.includes(this.uuid)) {
+      rooms.push(this.uuid);
+      localStorage.setItem('rooms', JSON.stringify(rooms));
     }
-  
-    addUser() {
-      const user = document.createElement('smart-user');
-      user.addEventListener('remove-user', (e) => this.removeUser(e.detail));
-      this.users = [...this.users, user];
-      this.requestUpdate();
+    this.saveRoomData();
+  }
+
+  loadRoomData() {
+    const roomData = JSON.parse(localStorage.getItem(this.uuid));
+    if (roomData) {
+      this.name = roomData.name;
+      this.users = roomData.users;
+      this.active = roomData.active;
     }
+  }
+
+  saveRoomData() {
+    const roomData = {
+      uuid: this.uuid,
+      name: this.name,
+      users: this.users,
+      active: this.active
+    };
+    localStorage.setItem(this.uuid, JSON.stringify(roomData));
+  }
+
+  addUser() {
+    const user = document.createElement('smart-user');
+    this.appendChild(user);
+    this.users.push(user.uuid);
+    this.saveRoomData();
+    this.requestUpdate();
+  }
+
+  removeUser(userUUID) {
+    this.users = this.users.filter(uuid => uuid !== userUUID);
+    this.saveRoomData();
+    this.requestUpdate();
+  }
   
-    removeUser(user) {
-      this.users = this.users.filter(user => user !== user);
-      this.requestUpdate();
-    }
-  
-    render() {
-      return html`
+
+  render() {
+    return html`
         <details class="room-details">
           <summary>${this.name}</summary>
           <button @click="${this.addUser}">Add User</button>
           <div class="users">
-            ${this.users.map(user => html`${user}`)}
+            ${this.users.map(userUUID => html`
+              <smart-user
+                uuid="${userUUID}"
+                @remove-user="${() => this.removeUser(userUUID)}"
+              ></smart-user>
+            `)}
           </div>
         </details>
       `;
+  }
+
+  firstUpdated() {
+    if (this.uuid) {
+      this.loadRoomData();
     }
   }
-  
-  customElements.define('smart-room', SmartRoom);
+}
+
+customElements.define('smart-room', SmartRoom);

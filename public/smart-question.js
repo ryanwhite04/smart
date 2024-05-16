@@ -3,9 +3,11 @@ import { css, html, LitElement } from "https://esm.sh/lit@3.1.2";
 class SmartQuestion extends LitElement {
   static get properties() {
     return {
-      length: { type: Number },
-      opened: { type: Boolean },
+      uuid: { type: String },
+      text: { type: String },
+      options: { type: Array },
       responses: { type: Object },
+      opened: { type: Boolean },
       replies: { type: Number },
       revealResults: { type: Boolean },
     };
@@ -36,17 +38,43 @@ class SmartQuestion extends LitElement {
 
   constructor() {
     super();
-    this.length = 0;
-    this.opened = false;
+    this.uuid = this.uuid || crypto.randomUUID();
+    this.text = '';
+    this.options = [];
     this.responses = {};
+    this.opened = false;
     this.replies = 0;
     this.revealResults = false;
   }
 
-  updated() {
-    const slot = this.shadowRoot.querySelector("slot[name=option]");
-    const options = slot.assignedNodes();
-    this.length = options.length;
+  connectedCallback() {
+    super.connectedCallback();
+    if (this.uuid) {
+      this.load();
+      this.save();
+    }
+  }
+
+  load() {
+    const data = JSON.parse(localStorage.getItem(this.uuid));
+    if (data) {
+        for (const key in data) {
+            this[key] = data[key];
+        }
+    }
+  }
+
+  save() {
+    const questionData = {
+      uuid: this.uuid,
+      text: this.text,
+      options: this.options,
+      responses: this.responses,
+      opened: this.opened,
+      replies: this.replies,
+      revealResults: this.revealResults
+    };
+    localStorage.setItem(this.uuid, JSON.stringify(questionData));
   }
 
   addOption() {
@@ -55,7 +83,9 @@ class SmartQuestion extends LitElement {
       const p = document.createElement("p");
       p.textContent = option;
       p.setAttribute("slot", "option");
+      this.options.push(option);
       this.appendChild(p);
+      this.save();
     }
   }
 
@@ -65,11 +95,13 @@ class SmartQuestion extends LitElement {
     this.responses = {};
     this.replies = 0;
     this.dispatchEvent(new CustomEvent("open"));
+    this.save();
   }
 
   close() {
     this.opened = false;
     this.dispatchEvent(new CustomEvent("close", { detail: this }));
+    this.save();
   }
 
   handleResponse(uuid, optionNumber, isTeacher) {
@@ -79,12 +111,15 @@ class SmartQuestion extends LitElement {
       this.revealResults = true;
     }
     this.requestUpdate();
+    this.save();
   }
 
   getResults() {
-    const results = new Array(this.length).fill(0);
-    for (const option of Object.values(this.responses)) {
-      results[option]++;
+    const results = new Array(this.options.length).fill(0);
+    if (this.responses) {
+      for (const option of Object.values(this.responses)) {
+        results[option]++;
+      }
     }
     return results;
   }
@@ -92,7 +127,7 @@ class SmartQuestion extends LitElement {
   render() {
     const results = this.getResults();
     return html`
-      <slot name="question"></slot>
+      <slot name="question">${this.text}</slot>
       <button @click="${this.addOption}">Add option</button>
       <slot name="option"></slot>
       ${
@@ -103,12 +138,10 @@ class SmartQuestion extends LitElement {
           this.revealResults
             ? html`
           ${
-              Array.from(this.children).filter((child) =>
-                child.slot === "option"
-              ).map((option, index) =>
+              this.options.map((option, index) =>
                 html`
             <div class="option">
-              <label>${option.textContent}</label>
+              <label>${option}</label>
               <span class="count">(${results[index]})</span>
             </div>
           `
@@ -123,8 +156,14 @@ class SmartQuestion extends LitElement {
         <button @click="${this.open}">Open</button>
       `
     }
-      <p>Number of options: ${this.length}</p>
+      <p>Number of options: ${this.options.length}</p>
     `;
+  }
+
+  firstUpdated() {
+    if (this.uuid) {
+      this.load();
+    }
   }
 }
 
