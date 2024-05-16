@@ -1,3 +1,18 @@
+/* Common styles for buttons */
+button {
+    padding: 8px 16px;
+    margin: 8px 0;
+    border: none;
+    border-radius: 4px;
+    background-color: #4caf50;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+button:hover {
+    background-color: #45a049;
+}
 
 #devices, #users, #questions {
     padding: 1em;
@@ -19,6 +34,26 @@
 }
 
 smart-user, smart-question {
+    margin: 1em;
+    background: #DDDDDD;
+}
+
+#rooms, #quizzes {
+    padding: 1em;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+#rooms {
+    /* background: #AAFFAA; */
+}
+
+#quizzes {
+    /* background: #FFAAAA; */
+}
+
+smart-room, smart-quiz {
     margin: 1em;
     background: #DDDDDD;
 }
