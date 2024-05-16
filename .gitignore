@@ -2,3 +2,5 @@ server/*.pem
 venv
 .vscode
 .DS_Store
+server/__pycache__/
+output.md
