@@ -66,7 +66,7 @@
                 console.log("No active quiz");
                 return;
             }
-            const question = active.querySelector('smart-question[active]');
+            const question = active.shadowRoot.querySelector('smart-question[active]');
             if (!question) {
                 console.log("No active question");
                 return;
