@@ -164,7 +164,7 @@ class SmartQuestion extends LitElement {
     const count = this.results[index];
     return html`
       <li class=${classes}>
-        ${this.hidden ? '' : html`<span class="count">(${count})</span>`}
+        ${this.hidden ? '' : html`<span class="count">(${count}/${this.replies})</span>`}
         <input type="text" value="${option}" @input=${e => this.updateOption(index, e.target.value)} />
         <button @click=${() => this.close(index)}>Select</button>
         <button @click=${() => this.removeOption(index)}>Remove</button>
