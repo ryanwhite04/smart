@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Smart Question Example</title>
+    <link rel="stylesheet" href="index.css">
+    <style>
+        #user {
+            display: flex;
+            flex-direction: column;
+            width: 300px;
+            margin: 0 auto;
+        }
+        #user input {
+            max-width: 100px;
+        }
+        #user.input {
+            display: flex;
+            flex-direction: row;
+        }
+        /* put on the left */
+        #user.input label {
+            margin-right: 10px;
+
+        }
+        /* put on the right */
+        #user.input input {
+            flex-grow: 1;
+        }
+    </style>
+</head>
+<body>
+    <smart-quiz uuid="geography" text="Geography"></smart-quiz>
+    <smart-quiz uuid="maths" text="Maths"></smart-quiz>
+    <smart-quiz uuid="english" text="English"></smart-quiz>
+    <!-- inputs below are for a simulated user,
+        just needs a number input for option and for user id
+        and a checkbox for if the response if from the teacher
+
+        The minimum input for option and id is 0
+        The default for both is also 0
+    -->
+    <div id="user">
+        <div class="input">
+            <label for="option">Option</label>
+            <input type="number" id="option" min="0" value="0" placeholder="Option">
+        </div>
+        <div class="input">
+            <label for="id">ID</label>
+            <input type="number" id="id" min="0" value="0" placeholder="ID">
+        </div>
+        <div class="input">
+            <label for="teacher">Teacher</label>
+            <input type="checkbox" id="teacher">
+        </div>
+        <div class="input">
+            <button type="button" id="simulate_response">Simulate Response</button>
+        </div>
+    </div>
+    <script src="smart-quiz.js" type="module"></script>
+    <script>
+        document.getElementById('simulate_response').addEventListener('click', submit);
+        function submit() {
+            const active = document.querySelector('smart-quiz[active]');
+            if (!active) {
+                console.log("No active quiz");
+                return;
+            }
+            const question = active.querySelector('smart-question[active]');
+            if (!question) {
+                console.log("No active question");
+                return;
+            }
+            const option = parseInt(document.getElementById('option').value, 10);
+            const user = {
+                id: parseInt(document.getElementById('id').value, 10),
+                teacher: document.getElementById('teacher').checked,
+            };
+            const response = {
+                option,
+                user,
+            };
+            console.log("Submit", question.options[option], user);
+            question.submit(response);
+        }
+    </script>
+</body>
+</html>
