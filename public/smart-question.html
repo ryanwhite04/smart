@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Smart Question Example</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <smart-question uuid="france_capital" text="Capital of France"></smart-question>
+    <smart-question uuid="germany_capital" text="Capital of Germany"></smart-question>
+    <smart-question uuid="italy_capital" text="Capital of Italy"></smart-question>
+    <!-- inputs below are for a simulated user,
+        just needs a number input for option and for user id
+        and a checkbox for if the response if from the teacher
+
+        The minimum input for option and id is 0
+        The default for both is also 0
+    -->
+    <input type="number" id="option" min="0" value="0" placeholder="Option">
+    <input type="number" id="id" min="0" value="0" placeholder="ID">
+    <label for="teacher">Teacher</label>
+    <input type="checkbox" id="teacher">
+    <button type="button" id="simulate_response">Simulate Response</button>
+    <script src="smart-question.js" type="module"></script>
+    <script>
+        document.getElementById('simulate_response').addEventListener('click', submit);
+        function submit() {
+            const active = document.querySelector('smart-question[active]');
+            if (!active) {
+                console.log("No active question");
+                return;
+            }
+            const option = parseInt(document.getElementById('option').value, 10);
+            const user = {
+                id: parseInt(document.getElementById('id').value, 10),
+                teacher: document.getElementById('teacher').checked,
+            };
+            const response = {
+                option,
+                user,
+            };
+            console.log("Submit", active.options[option], user);
+            active.submit(response);
+        }
+    </script>
+</body>
+</html>

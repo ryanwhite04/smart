@@ -7,9 +7,10 @@ class SmartQuestion extends LitElement {
       text: { type: String },
       options: { type: Array },
       responses: { type: Object },
-      opened: { type: Boolean },
-      replies: { type: Number },
-      revealResults: { type: Boolean },
+      hidden: { type: Boolean },
+      active: { type: Boolean, reflect: true },
+      debug: { type: Boolean },
+      correct: { type: Number },
     };
   }
 
@@ -21,17 +22,23 @@ class SmartQuestion extends LitElement {
         border: 1px solid #ddd;
         border-radius: 8px;
       }
-      ul {
-        list-style: none;
-        padding: 0;
+      :host[active] {
+        background: lightblue;
+      }
+      details[open] summary {
+        padding-bottom: 16px;
       }
       .option {
-        display: flex;
         align-items: center;
+        min-width: 100px;
+        margin: 8px 0;
       }
       .count {
         margin-left: 10px;
         font-weight: bold;
+      }
+      .correct input {
+        background: lightgreen;
       }
     `;
   }
@@ -40,125 +47,146 @@ class SmartQuestion extends LitElement {
     super();
     this.uuid = this.uuid || crypto.randomUUID();
     this.text = '';
+    this.correct = null;
     this.options = [];
     this.responses = {};
-    this.opened = false;
-    this.replies = 0;
-    this.revealResults = false;
+    this.active = false;
+    this.hidden = true;
+    this.debug = false;
+  }
+
+  // the total number of replies so far
+  get replies() {
+    return this.responses ? Object.values(this.responses).length : 0; 
   }
 
   connectedCallback() {
     super.connectedCallback();
     if (this.uuid) {
       this.load();
-      this.addToLocalStorage();
-    }
-  }
-
-  addToLocalStorage() {
-    const questions = JSON.parse(localStorage.getItem('questions')) || [];
-    if (!questions.includes(this.uuid)) {
-      questions.push(this.uuid);
-      localStorage.setItem('questions', JSON.stringify(questions));
+      this.save();
     }
   }
 
   load() {
-    const questionData = JSON.parse(localStorage.getItem(this.uuid));
-    if (questionData) {
-      this.text = questionData.text;
-      this.options = questionData.options;
-      this.responses = questionData.responses || {};
-      this.opened = questionData.opened || false;
-      this.replies = questionData.replies || 0;
-      this.revealResults = questionData.revealResults || false;
+    const data = JSON.parse(localStorage.getItem(this.uuid));
+    if (data) {
+      for (const key in data) {
+        this[key] = data[key];
+      }
     }
+    this.requestUpdate();
   }
 
   save() {
-    const questionData = {
-      uuid: this.uuid,
-      text: this.text,
-      options: this.options,
-      responses: this.responses,
-      opened: this.opened,
-      replies: this.replies,
-      revealResults: this.revealResults
-    };
-    localStorage.setItem(this.uuid, JSON.stringify(questionData));
+    const data = {};
+    for (const key in this.constructor.properties) {
+      data[key] = this[key];
+    }
+    localStorage.setItem(this.uuid, JSON.stringify(data));
+    this.requestUpdate();
   }
 
   addOption() {
-    const option = window.prompt("Enter a new option");
-    if (option) {
-      this.options.push(option);
+    const text = prompt("Enter option");
+    if (text) {
+      this.options.push(text);
       this.save();
-      this.requestUpdate();
     }
   }
 
   open() {
-    this.opened = true;
-    this.revealResults = false;
-    this.responses = {};
-    this.replies = 0;
+    this.correct = null;
+    this.active = true;
+    this.hidden = true;
     this.dispatchEvent(new CustomEvent("open"));
     this.save();
   }
 
-  close() {
-    this.opened = false;
+  close(option) {
+    this.correct = option;
+    this.active = false;
+    this.hidden = false;
     this.dispatchEvent(new CustomEvent("close", { detail: this }));
     this.save();
   }
 
-  handleResponse(uuid, optionNumber, isTeacher) {
-    this.responses[uuid] = optionNumber;
-    this.replies = Object.keys(this.responses).length;
-    if (isTeacher) {
-      this.revealResults = true;
+  submit(response) {
+    const {
+      option,
+      user,
+    } = response;
+    if (user.teacher) {
+      this.close(option);
+    } else {
+      this.responses[user.uuid] = option;
     }
-    this.requestUpdate();
     this.save();
   }
 
-  getResults() {
-    const results = new Array(this.options.length).fill(0);
-    if (this.responses) {
-      for (const option of Object.values(this.responses)) {
-        results[option]++;
-      }
-    }
-    return results;
+  get results() {
+    return this.options.map((option, index) => {
+      return Object.values(this.responses).filter((response) => response === index).length;
+    });
   }
 
-  render() {
-    const results = this.getResults();
-    return html`
-      <div>
-        <p>${this.text}</p>
-        <button @click="${this.addOption}">Add option</button>
-        ${this.opened ? html`
-          <p>Replies: ${this.replies}</p>
-          <button @click="${this.close}">Close</button>
-        ` : html`
-          <button @click="${this.open}">Open</button>
-        `}
-        <p>Number of options: ${this.options.length}</p>
-        ${this.options.map((option, index) => html`
-        <div class="option">
-          <label>${option}</label>
-          ${this.revealResults ? html`<span class="count">(${results[index]})</span>` : ''}
-        </div>
-      `)}
-      </div>
-    `;
+  clear() {
+    this.responses = {};
+    this.correct = null;
+    this.active = false;
+    this.hidden = true;
+    this.save();
   }
 
   firstUpdated() {
     if (this.uuid) {
       this.load();
     }
+  }
+
+  toggle() {
+
+  }
+
+  updateOption(index, value) {
+    this.options[index] = value;
+    this.save();
+  }
+
+  removeOption(index) {
+    this.options.splice(index, 1);
+    this.save();
+  }
+
+  renderOption(option, index) {
+    const correct = this.correct === index;
+    const classes = ["option", correct ? "correct" : ""].join(" ");
+    const count = this.results[index];
+    return html`
+      <li class=${classes}>
+        ${this.hidden ? '' : html`<span class="count">(${count})</span>`}
+        <input type="text" value="${option}" @input=${e => this.updateOption(index, e.target.value)} />
+        <button @click=${() => this.close(index)}>Select</button>
+        <button @click=${() => this.removeOption(index)}>Remove</button>
+      </li>
+    `;
+  }
+
+  render() {
+    return html`
+      <details @toggle=${this.toggle}>
+        <summary>${this.text}</summary>
+        <button @click="${this.clear}">Clear responses</button>
+        <button @click="${this.addOption}">Add option</button>
+        ${this.active ? html`
+          <p>Replies: ${this.replies}</p>
+        ` : html`
+          <button @click="${this.open}">Open</button>
+        `}
+        ${this.debug ? html`<p>Number of options: ${this.options.length}</p>` : ''}
+        <ol>${this.options.map(this.renderOption.bind(this))}</ol>
+      </details>
+    `;
   }
 }
 
