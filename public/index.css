@@ -45,14 +45,6 @@ smart-user, smart-question {
     justify-content: center;
 }
 
-#rooms {
-    /* background: #AAFFAA; */
-}
-
-#quizzes {
-    /* background: #FFAAAA; */
-}
-
 smart-room, smart-quiz {
     margin: 1em;
     background: #DDDDDD;
