@@ -79,7 +79,7 @@ async function submit() {
       return {
         "id": question.uuid,
         "text": question.text,
-        "answers": question.responses,
+        "answers": [],
       };
     }),
   }
