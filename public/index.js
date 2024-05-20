@@ -41,17 +41,37 @@ window.addEventListener('load', () => {
   renderList('quiz-list', 'quizzes', 'smart-quiz');
 });
 
-// Handle incoming messages
-const device = document.getElementById("device");
+function getActiveRoom() {
+  return document.querySelector('smart-room[active]');
+}
 
-device.addEventListener('message', (e) => {
-  const [deviceId, , optionNumber] = e.data.split(' ');
-  const user = Array.from(document.querySelectorAll('smart-user')).find(user => user.deviceId === deviceId);
-  if (user) {
-    const question = document.querySelector('smart-question[opened]');
-    if (question) {
-      question.handleResponse(user.uuid, parseInt(optionNumber, 10), user.teacher);
+document.addEventListener('message', event => {
+  const message = e.detail;
+  const device = message.split(":")[1];
+  const room = getActiveRoom();
+  const quiz = getActiveQuiz();
+  const option = parseInt(message.split(":")[2], 10);
+  if (!room || !quiz) {
+    return;
+  }
+  const user = room.getUserByDevice(device);
+  const question = quiz.question
+  if (!user || !question) {
+    return;
+  }
+  question.submit({ option, user });
+
+  submit(response) {
+    const {
+      option,
+      user,
+    } = response;
+    if (user.teacher) {
+      this.close(option);
+    } else {
+      this.responses[user.uuid] = option;
     }
+    this.save();
   }
 });
 
