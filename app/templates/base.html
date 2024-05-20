@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en-AU" data-bs-theme="dark">
+
+<head>
+    <title>
+        {{ title }}
+    </title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Clicker Admin">
+    <meta name="keywords" content="CITS5506, Clicker, Final Project">
+    <meta name="author" content="Kent Yip (23076078)">
+    <meta name="format-detection" content="telephone=no">
+    <!-- css -->
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/base.css') }}">
+    <!-- favicon links -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon/favicon.ico') }}">
+    <link rel="apple-touch-icon" sizes="180x180"
+        href="{{ url_for('static', filename='favicon/apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32"
+        href="{{ url_for('static', filename='favicon/favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16"
+        href="{{ url_for('static', filename='favicon/favicon-16x16.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='favicon/site.webmanifest') }}">
+    <!-- jquery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+    <!-- Font Awesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <!-- google fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@500&display=swap" rel="stylesheet">
+    {% block head %}
+    {% endblock head %}
+</head>
+
+<body>
+    <!-- navbar only if user is logged in -->
+    {% if current_user.is_authenticated %}
+    {% include "navbar.html" %}
+    {% endif %}
+
+    <main class="text-center pt-5 nearly-fullscreen">
+        <header>
+            {% block header %}
+            {% endblock header %}
+        </header>
+        {% include "flash_messages.html" %}
+        <div class="container">
+            {% block content %}
+            {% endblock content %}
+        </div>
+    </main>
+    <footer>
+        <div class="container-fluid pt-5 text-center">
+            <p>
+                Created by:<br>
+                Kent Yip (23076078)<br>
+                2024
+            </p>
+        </div>
+    </footer>
+    <!-- base js -->
+    <script src="{{ url_for('static', filename='js/base.js') }}"></script>
+    <!-- bootstrap js -->
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.js') }}"></script>
+</body>
+
+</html>
+

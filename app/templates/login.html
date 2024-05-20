@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block header %}
+<div class="container-fluid text-center">
+  <h1 class="display-1">Clicker Admin</h1>
+</div>
+{% endblock header %}
+{% block content %}
+<!-- stays on register tab if error with registration -->
+{% set active_tab = 'login' %}
+{% with messages = get_flashed_messages(with_categories=True) %}
+{% if messages %}
+{% for category, message in messages %}
+{% if "taken" in message or "account" in message %}
+{% set active_tab = 'register' %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endwith %}
+{% if new_user_form.errors %}
+{% set active_tab = 'register' %}
+{% endif %}
+<div class="container pt-4">
+  <div class="row text-center">
+    <div class="col-sm-6 d-flex justify-content-center mx-auto">
+      <div class="container">
+        <p class="lead"> Clicker Admin </p>
+        <p> Please login! </p>
+        <div class="container my-4">
+          <a href="{{ url_for('main.about') }}" class="btn btn-primary">About Clicker Admin</a>
+        </div>
+        <div class="row bg-dark">
+          <div class="col-sm d-flex justify-content-center mx-auto">
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link {{ 'active' if active_tab == 'login' }}" id="login-tab" data-bs-toggle="tab"
+                  data-bs-target="#login-tab-pane" type="button" role="tab" aria-controls="login-tab-pane">Sign
+                  in</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link {{ 'active' if active_tab == 'register' }}" id="register-tab"
+                  data-bs-toggle="tab" data-bs-target="#register-tab-pane" type="button" role="tab"
+                  aria-controls="register-tab-pane">Register</button>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="tab-content pt-4" id="myTabContent">
+          <div class="tab-pane {{ 'active' if active_tab == 'login' }}" id="login-tab-pane" role="tabpanel"
+            aria-labelledby="login-tab" tabindex="0">
+            <h2>Sign In</h2>
+            {% include "login_form.html" %}
+          </div>
+          <div class="tab-pane {{ 'active' if active_tab == 'register' }}" id="register-tab-pane" role="tabpanel"
+            aria-labelledby="register-tab" tabindex="0">
+            <h2>Sign Up</h2>
+            {% include "new_user_form.html" %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

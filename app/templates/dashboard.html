@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block header %}
+<h1>{{ title }}</h1>
+{% endblock header %}
+{% block content %}
+    <div class="controls">
+      <select id="categorySelect">
+        <option value="teacher">Teacher</option>
+        <option value="class">Class</option>
+        <option value="student">Student</option>
+      </select>
+    
+      <select id="entitySelect">
+        <!-- 实体选择将通过 JavaScript 动态填充 -->
+      </select>
+    
+      <label for="startDate">Start Date:</label>
+      <input type="date" id="startDate">
+    
+      <label for="endDate">End Date:</label>
+      <input type="date" id="endDate">
+      <button type="submit" onclick="submitForm()">Submit</button>
+      <button type="reset" onclick="resetForm()">Reset</button>
+    </div>
+    
+    <!-- Graphs -->
+    <div class="chart-container">
+      <div class="chart">
+        <canvas id="quizAccuracyChart"></canvas>
+      </div>
+      <div class="chart">
+        <canvas id="overallAccuracyChart"></canvas>
+      </div>
+      <div class="chart">
+        <canvas id="historicalAccuracyChart"></canvas>
+      </div>
+      <div class="chart">
+        <input type="number" id="percentage" placeholder="Enter percentage">
+        <button onclick="updateChart4()">Show Quizzes Below Threshold</button>
+        <div id="lowPerformingQuizzes" style="width: 100%; text-align: center;">
+            <table id="lowPerfTable">
+                <!-- Dynamic content will be generated and inserted here -->
+            </table>
+            <div id="pagination"></div>
+        </div>
+    </div>
+    
+    </div>
+</body>
+    
+<style>
+  #lowPerfTable {
+      width: 80%;             /* Set the width of the table to occupy 80% of its container */
+      margin: 20px auto;      /* Center the table horizontally and add some margin for spacing */
+      border-collapse: collapse; /* Collapse borders so they become single line instead of double */
+      text-align: left;       /* Align the text to the left inside cells */
+  }
+
+  #lowPerfTable th, #lowPerfTable td {
+      border: 1px solid black; /* Add border to both table headers and table cells */
+      padding: 8px;            /* Add padding inside cells for better readability */
+  }
+
+  #lowPerfTable th {
+      background-color: #f2f2f2; /* Light grey background for headers for distinction */
+  }
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const categorySelect = document.getElementById('categorySelect');
+    const entitySelect = document.getElementById('entitySelect');
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    const outputArea = document.getElementById('outputArea');
+    let currentPage = 1;
+    const recordsPerPage = 4;
+    let filteredData = [];
+    const teacherOptions = {{ teachers|tojson }};
+    const classOptions = {{ classes|tojson }};
+    const studentOptions = {{ students|tojson }};
+    // Prepare chart variables outside to be accessible globally
+    const quizData = {
+      quizzes: [],  // This will be populated with fetched data
+      accuracies: [] // This will be populated with fetched data
+  };
+    const ctx1 = document.getElementById('quizAccuracyChart').getContext('2d');
+    const quizAccuracyChart = new Chart(ctx1, {
+      type: 'bar',
+      data: { labels: [], datasets: [{ label: 'Accuracy Rate', data: [], backgroundColor: 'rgba(54, 162, 235, 0.6)' }] }
+    });
+
+    const ctx2 = document.getElementById('overallAccuracyChart').getContext('2d');
+    const overallAccuracyChart = new Chart(ctx2, {
+      type: 'bar',
+      data: { labels: [], datasets: [{ label: 'Participation', data: [], backgroundColor: 'rgba(255, 99, 132, 0.6)' }] }
+    });
+
+    const ctx3 = document.getElementById('historicalAccuracyChart').getContext('2d');
+    const historicalAccuracyChart = new Chart(ctx3, {
+        type: 'line',
+        data: { labels: [], datasets: [{ label: 'Historical Accuracy', data: [], borderColor: 'rgba(75, 192, 192, 1)' }] }
+    });
+    function updateEntitySelect(category) {
+        entitySelect.innerHTML = ''; 
+        let options = [];
+        if (category === 'teacher') {
+            options = teacherOptions;
+        } else if (category === 'class') {
+            options = classOptions;
+        } else if (category === 'student') {
+            options = studentOptions;
+        }
+
+        options.forEach(function(option) {
+            const newOption = document.createElement('option');
+            newOption.value = option.id;  
+            newOption.textContent = option.name; 
+            entitySelect.appendChild(newOption);
+        });
+    }
+
+    categorySelect.value = 'teacher';
+    updateEntitySelect('teacher');
+
+    categorySelect.addEventListener('change', function() {
+        updateEntitySelect(this.value);
+    });
+    function updateCharts(tests, category) {
+      // Extract the necessary data from the tests array
+      const quizzes = tests.map(test => test.name);
+      let accuracies = tests.map(test => test.student_accuracy);
+      let participations = tests.map(test => test.student_participation);
+    
+      // Update the quizData object with quizzes and student accuracies
+      quizData.quizzes = quizzes;
+      quizData.accuracies = accuracies;
+    
+      // If the category is 'class', use overall accuracy and participation instead
+      if (category === 'class') {
+        accuracies = tests.map(test => test.overall_accuracy);
+        participations = tests.map(test => test.overall_participation);
+        quizData.accuracies = accuracies; // Update quizData with overall accuracies
+      }
+      // Update each chart
+      quizAccuracyChart.data.labels = quizzes;
+      quizAccuracyChart.data.datasets[0].data = accuracies;
+      quizAccuracyChart.update();
+
+      overallAccuracyChart.data.labels = quizzes;
+      overallAccuracyChart.data.datasets[0].data = participations;
+      overallAccuracyChart.update();
+
+    }
+    function calculateWeeklyAccuracy(tests, startDate) {
+      const weeklyData = {};
+      const start = new Date(startDate);
+      
+      start.setDate(start.getDate() - start.getDay() + 1); // Nearest Monday to startDate
+      tests.forEach(test => {
+          const testDate = new Date(test.date_taken);
+          const weekStart = new Date(testDate);
+          let accuracy=0;
+          if(categorySelect.value  ==='class'){
+            accuracy=test.overall_accuracy;
+          }
+            else {
+             accuracy=test.student_accuracy;
+            }
+            console.log(accuracy)
+          weekStart.setDate(testDate.getDate() - testDate.getDay() + 1); // Monday of the test's week
+
+          const weekKey = weekStart.toISOString().split('T')[0];
+          if (!weeklyData[weekKey]) {
+              weeklyData[weekKey] = { totalAccuracy: 0, count: 0 };
+          }
+            weeklyData[weekKey].totalAccuracy += accuracy;
+          weeklyData[weekKey].count += 1;
+      });
+
+      const weeklyAverages = [];
+      let current = new Date(start);
+      let end=new Date(endDateInput.value)
+      while (current <= new Date()) {
+          const weekKey = current.toISOString().split('T')[0];
+          if (weeklyData[weekKey]) {
+              const average = weeklyData[weekKey].totalAccuracy / weeklyData[weekKey].count;
+              weeklyAverages.push({ week: weekKey, average });
+          } else {
+              weeklyAverages.push({ week: weekKey, average: 0 });
+          }
+          current.setDate(current.getDate() + 7); // Move to next week
+      }
+      console.log(weeklyAverages)
+      return weeklyAverages;
+  }
+
+  // Update historicalAccuracyChart with the calculated weekly accuracy
+  function updateHistoricalAccuracyChart(tests, startDate) {
+      const weeklyAverages = calculateWeeklyAccuracy(tests, startDate);
+
+      historicalAccuracyChart.data.labels = weeklyAverages.map(data => data.week);
+      historicalAccuracyChart.data.datasets[0].data = weeklyAverages.map(data => data.average);
+      historicalAccuracyChart.update();
+  }
+    function updateChart4() {
+      const threshold = parseFloat(document.getElementById('percentage').value);
+      filteredData = quizData.quizzes
+          .map((quiz, index) => ({ quiz, accuracy: quizData.accuracies[index] }))
+          .filter(data => data.accuracy < threshold);
+  
+      currentPage = 1; // Reset to first page
+      renderTable();
+      renderPagination();
+  }
+  
+  function renderTable() {
+      const table = document.getElementById('lowPerfTable');
+      table.innerHTML = "<tr><th>Test Name</th><th>Accuracy</th></tr>";
+  
+      const start = (currentPage - 1) * recordsPerPage;
+      const end = start + recordsPerPage;
+      const paginatedData = filteredData.slice(start, end);
+  
+      paginatedData.forEach(data => {
+          const row = table.insertRow(-1);
+          row.insertCell(0).textContent = data.quiz;
+          row.insertCell(1).textContent = data.accuracy + '%';
+      });
+  
+      if (table.rows.length === 1) {
+          const row = table.insertRow(-1);
+          const cell = row.insertCell(0);
+          cell.colSpan = 2;
+          cell.textContent = 'No tests are below ' + document.getElementById('percentage').value + '% accuracy.';
+      }
+  }
+  
+  function renderPagination() {
+      const paginationDiv = document.getElementById('pagination');
+      paginationDiv.innerHTML = '';
+  
+      const totalPages = Math.ceil(filteredData.length / recordsPerPage);
+  
+      for (let i = 1; i <= totalPages; i++) {
+          const button = document.createElement('button');
+          button.textContent = i;
+          button.className = (i === currentPage) ? 'active' : '';
+          button.addEventListener('click', () => {
+              currentPage = i;
+              renderTable();
+              renderPagination();
+          });
+          paginationDiv.appendChild(button);
+      }
+  }
+  
+
+  window.updateChart4 = updateChart4;
+    // Submit action
+    window.submitForm = function() {
+      const selectedId = entitySelect.value;
+      const category = categorySelect.value;
+      const startDate = startDateInput.value;
+      const endDate = endDateInput.value;
+      // Determine the appropriate URL based on the selected category
+      const url = `/dashboard/${category}/`; // e.g., /dashboard/teacher/, /dashboard/class/, /dashboard/student/
+
+      // Prepare the data to send
+      const data = {
+          [`${category}_id`]: selectedId, // dynamic key based on category (teacher_id, class_id, student_id)
+          "start_time": startDate,
+          "end_time": endDate
+      };
+
+      // Perform the fetch request
+      fetch(url, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
+      })
+      .then(response => response.json()) // Parsing the JSON response body
+      .then(data => {
+          console.log('Success:', data);
+          // Process the response data here, for example, display in outputArea
+          updateCharts(data.tests,category);
+          updateHistoricalAccuracyChart(data.tests, startDate)
+      })
+      .catch((error) => {
+          console.error('Error:', error);
+          outputArea.textContent = 'Failed to fetch data: ' + error;
+      });
+  };
+});
+  
+
+</script>
+
+{% endblock content %}

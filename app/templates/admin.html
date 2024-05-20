@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block head %}
+<script src="{{ url_for('static', filename='js/checkbox_before_submit.js') }}"></script>
+{% endblock head %}
+{% block header %}
+<h1>{{ title }}</h1>
+{% endblock header %}
+{% block content %}
+<div class="container mt-4">
+    {% if current_user.is_admin == true %}
+    <div class="row text-center">
+        <div class="col-sm">
+            <h4>User List</h4>
+            <form method="post" action="{{ url_for('main.admin') }}">
+                <div class="d-flex justify-content-center align-items-center">
+                    <table class="table table-bordered table-striped bg-dark">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Remove</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.email }}</td>
+                                <td><input class="checkbox" type="checkbox" value="{{ user.username }}" name='remove'>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <input type="submit" class="btn btn-primary mt-3" value="Remove" name="remove_users" id="Remove_Button"
+                    disabled>
+            </form>
+        </div>
+        <div class="col-sm">
+            <h4>Add User</h4>
+            {% include "new_user_form.html" %}
+        </div>
+    </div>
+    {% endif %}
+    {% if current_user.is_admin == false %}
+    <p>
+        <em>Access Denied.</em> Admin permissions only.
+    </p>
+    {% endif %}
+</div>
+{% endblock content %}

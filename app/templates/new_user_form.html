@@ -1,0 +1,13 @@
+<div class="container pt-3">
+      <p>Username must only contain letters, numbers, and underscores.</p>
+      <p>{{ password_requirements }}</p>
+    <form action="#" method="post" class="pt-3">
+        {{ new_user_form.hidden_tag() }}
+        <!-- button disabled until all fields have been filled -->
+        <p>{{ new_user_form.email(size=32, required=true, class="required", onkeyup="enableSubmit()") }}</p>
+        <p>{{ new_user_form.username_register(size=32, required=true, class="required", onkeyup="enableSubmit()") }}</p>
+        <p>{{ new_user_form.new_password(size=32, required=true, class="required", onkeyup="enableSubmit()") }}</p>
+        <p>{{ new_user_form.repeat_password(size=32, required=true, class="required", onkeyup="enableSubmit()") }}</p>
+        <p>{{ new_user_form.register(class="btn btn-primary", disabled=true) }}</p>
+    </form>
+</div>
