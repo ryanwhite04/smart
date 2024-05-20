@@ -5,55 +5,40 @@ import "./smart-user.js";
 import "./smart-device.js";
 
 // Add a new room
-const addRoom = () => {
-  const roomName = prompt("Enter room name:");
-  if (roomName) {
+function addRoom() {
     const room = document.createElement('smart-room');
-    room.name = roomName;
     document.getElementById('room-list').appendChild(room);
-  }
+  const rooms = JSON.parse(localStorage.getItem('rooms')) || [];
+  rooms.push(room.uuid);
+  localStorage.setItem('rooms', JSON.stringify(rooms));
 };
 
 // Add a new quiz
-const addQuiz = () => {
-  const quizName = prompt("Enter quiz name:");
-  if (quizName) {
+function addQuiz() {
     const quiz = document.createElement('smart-quiz');
-    quiz.name = quizName;
     document.getElementById('quiz-list').appendChild(quiz);
-  }
+  const quizzes = JSON.parse(localStorage.getItem('quizzes')) || [];
+  quizzes.push(quiz.uuid);
+  localStorage.setItem('quizzes', JSON.stringify(quizzes));
 };
 
-// Render rooms
-function renderRooms() {
-  const roomList = document.getElementById('room-list');
-  roomList.innerHTML = '';
-  const rooms = JSON.parse(localStorage.getItem('rooms')) || [];
-  rooms.forEach(roomUUID => {
-    const room = document.createElement('smart-room');
-    room.uuid = roomUUID;
-    document.getElementById('room-list').appendChild(room);
+function renderList(list, key, elment) {
+  const listElement = document.getElementById(list);
+  listElement.innerHTML = '';
+  const items = JSON.parse(localStorage.getItem(key)) || [];
+  items.forEach(uuid => {
+    const item = document.createElement(element);
+    item.uuid = uuid;
+    document.getElementById(list).appendChild(item);
   });
-}
 
-// Render quizzes
-function renderQuizzes() {
-  const quizList = document.getElementById('quiz-list');
-  quizList.innerHTML = '';
-  const quizzes = JSON.parse(localStorage.getItem('quizzes')) || [];
-  quizzes.forEach(quizUUID => {
-    const quiz = document.createElement('smart-quiz');
-    quiz.uuid = quizUUID;
-    document.getElementById('quiz-list').appendChild(quiz);
-  });
-}
 
 document.getElementById('add-room').addEventListener('click', addRoom);
 document.getElementById('add-quiz').addEventListener('click', addQuiz);
 
 window.addEventListener('load', () => {
-  renderRooms();
-  renderQuizzes();
+  renderList('room-list', 'rooms', 'smart-room');
+  renderList('quiz-list', 'quizzes', 'smart-quiz');
 });
 
 // Handle incoming messages
