@@ -12,29 +12,58 @@
 #include "painlessMesh.h"
 #include "command.hpp"
 #include "Adafruit_seesaw.h"
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 #include <seesaw_neopixel.h>
 
 // Set up encoder
 #define SS_SWITCH 24
 #define SS_NEOPIX 6
 #define SEESAW_ADDR 0x36
-
-#define MESH_PREFIX "whateverYouLike"
-#define MESH_PASSWORD "somethingSneaky"
-#define MESH_PORT 5555
-Scheduler userScheduler; // to control your personal task
-painlessMesh mesh;
 Adafruit_seesaw ss;
 seesaw_NeoPixel sspixel = seesaw_NeoPixel(1, SS_NEOPIX, NEO_GRB + NEO_KHZ800);
 int32_t encoder_position;
 bool prev_button = 0;
-
-// C3 has no buildin led
-// const byte ledPin = LED_BUILTIN;
 const byte interruptPin = D3;
 const byte fakeGroundPin = D6;
 volatile byte state = LOW;
 volatile bool interruptFlag = false;
+
+// Set up screen
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET -1       // Reset pin # (or -1 if sharing Arduino reset pin)
+#define SCREEN_ADDRESS 0x3D ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+// Set up mesh network
+#define MESH_PREFIX "whateverYouLike"
+#define MESH_PASSWORD "somethingSneaky"
+#define MESH_PORT 5555
+painlessMesh mesh;
+
+Scheduler userScheduler; // to control your personal task
+
+// C3 has no buildin led
+// const byte ledPin = LED_BUILTIN;
+
+void updateDisplay(String message, int line)
+{
+  int lineHeight = 8;                // Height of each line of text
+  int yPosition = line * lineHeight; // Calculate y position based on line number
+
+  // Clear only the specific line by filling a rectangle across the screen width
+  display.fillRect(0, yPosition, SCREEN_WIDTH, lineHeight, SSD1306_BLACK);
+
+  // Set the cursor to the start of the specified line
+  display.setCursor(0, yPosition);
+
+  // Write the new message on the cleared line
+  display.println(message);
+
+  // Update the display to show changes
+  display.display();
+}
 
 // User stub
 void sendMessage(); // Prototype so PlatformIO doesn't complain
@@ -61,8 +90,10 @@ void executeCommand()
     if (cp.command == "id")
     {
       Serial.printf("id:%u\n", mesh.getNodeId());
-    } else {
-      mesh.sendBroadcast(command);  
+    }
+    else
+    {
+      mesh.sendBroadcast(command, true);
     }
   }
   taskExecuteCommand.setInterval(random(TASK_SECOND * 0.5, TASK_SECOND * 1));
@@ -76,23 +107,62 @@ void setLightColor(int r, int g, int b)
   sspixel.show();
 }
 
-int options = 4;
+String name;
+
+int options = -1;
+int choosed = -1;
+int submitted = -1;
+int origin_position = 0;
 void setOptionsNumber(int num)
 {
+  if (num <= 1) {
+    return;
+  }
   options = num;
+  choosed = -1;
+  submitted = -1;
+  updateDisplay("", 5);
+  origin_position = encoder_position;
+  updateDisplay(String(num) + String(" options provided."), 1);
+  updateDisplay(name + String(", what's your option?"), 2);
 }
 
-String name;
+void select(int num) {
+  if (options <= 1) {
+    return;
+  }
+  choosed = num % options;
+  if (choosed < 0) {
+    choosed += options;
+  }
+  Serial.printf("select: %d\n", choosed);
+  String res;
+  // int x = choosed;
+  // while (x > 0) {
+  //   --x;
+  //   res = String((char)((x % 26) + 'A')) + res;
+  //   x /= 26;
+  // }
+  res = String(choosed + 1);
+
+  updateDisplay(String(""), 3);
+  updateDisplay(String("You chose option ") + res, 2);
+}
+
 void setName(String newName)
 {
   name = newName;
   Serial.printf("got a new name: %s\n", name);
+  updateDisplay(String("Hi, ") + name, 1);
 }
 
 void submitAnswer(int idx)
 {
   String s = "a:";
-  s += idx;
+  s += String(idx);
+  submitted = idx;
+  String res = String(submitted);
+  updateDisplay(String("Option ") + res + String(" is submitted"), 5);
 
   mesh.sendBroadcast(s);
 }
@@ -105,7 +175,7 @@ void receivedCallback(uint32_t from, String &msg)
   if (cp.command == "a")
   {
     // submitting students' answers
-    Serial.printf("a:%u:%s", from, cp.params[0]);
+    Serial.printf("a:%u:%s\n", from, cp.params[0]);
   }
   if (cp.command == "l")
   {
@@ -115,7 +185,8 @@ void receivedCallback(uint32_t from, String &msg)
   {
     setOptionsNumber(cp.params[0].toInt());
   }
-  if (cp.command == "n") {
+  if (cp.command == "n")
+  {
     if (cp.params[0].toInt() == mesh.getNodeId())
       setName(cp.params[1]);
   }
@@ -150,7 +221,7 @@ void setup_seesaw()
   {
     Serial.println("Couldn't find seesaw on default address, working as Smart Hub");
     return;
-  } 
+  }
   Serial.println("seesaw started");
 
   uint32_t version = ((ss.getVersion() >> 16) & 0xFFFF);
@@ -181,10 +252,29 @@ void setup_seesaw()
   ss.enableEncoderInterrupt();
 }
 
+void setup_screen()
+{
+
+  // Initialize with the I2C addr 0x3C (for the 128x64)
+  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
+  {
+    Serial.println("Couldn't find SSD1306, working as Smart Hub");
+    return;
+  }
+  display.clearDisplay();
+  // display.setTextSize(1);      // Normal 1:1 pixel scale
+  display.setTextColor(SSD1306_WHITE); // Draw white text
+  display.setCursor(0, 0);             // Start at top-left corner
+  // display.cp437(true);         // Use full 256 char 'Code Page 437' font
+
+  
+}
+
 void setup()
 {
   Serial.begin(115200);
   setup_seesaw();
+  setup_screen();
 
   // mesh.setDebugMsgTypes(ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE);  // all types on
   mesh.setDebugMsgTypes(ERROR | STARTUP); // set before init() so that you can see startup messages
@@ -209,11 +299,17 @@ void loop()
   {
     encoder_position = ss.getEncoderPosition();
     int switch_pressed = ss.digitalRead(SS_SWITCH);
-    String msg = encoder_position > 4 ? "a" : "b";
-    msg += mesh.getNodeId();
-    mesh.sendBroadcast(msg);
+    
     interruptFlag = false; // Reset the flag
     Serial.printf("%d, %u\n", encoder_position, switch_pressed);
+    select(encoder_position - origin_position);
+    if (switch_pressed == 0) {
+      if (choosed == -1) {
+        updateDisplay(String("Choose an option"), 2);
+      } else {
+        submitAnswer(choosed + 1);
+      }
+    }
   }
 }
 
