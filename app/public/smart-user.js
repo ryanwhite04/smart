@@ -6,7 +6,7 @@ class SmartUser extends LitElement {
     return {
       uuid: { type: String },
       text: { type: String },
-      // teacher: { type: Boolean },
+      teacher: { type: Boolean },
       device: { type: String }, // uuid of the last connected device
       bound: { type: Boolean }, // whether the user is bound to a device
       debug: { type: Boolean, reflect: true },
@@ -123,12 +123,14 @@ class SmartUser extends LitElement {
             <label>
               <input type="checkbox" @change="${(e) => {
                 this.teacher = e.target.checked;
-                this.saveData();
+                this.save();
               }}" ?checked="${this.teacher}"> Teacher
             </label>
           </summary>
           <p>${this.device}</p>
-          <button @click="${this.remove}">Remove</button>
+          <p>
+            <button @click="${this.remove}">Remove</button>
+          </p>
           <smart-device id="device" ?debug=${this.debug} uuid=${this.device} @message=${this.handleMessage.bind(this)} @connect=${this.onDeviceConnect.bind(this)}></smart-device>
         </details>
       `;

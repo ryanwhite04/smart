@@ -4,3 +4,5 @@ venv
 .DS_Store
 server/__pycache__/
 output.md
+**/__pycache__
+app.db

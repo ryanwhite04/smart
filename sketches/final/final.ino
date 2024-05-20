@@ -47,8 +47,19 @@ Scheduler userScheduler; // to control your personal task
 // C3 has no buildin led
 // const byte ledPin = LED_BUILTIN;
 
+bool mock = false;
+bool isHub = false;
+
+
 void updateDisplay(String message, int line)
 {
+  if (mock) {
+    return;
+  }
+  if (!display.availableForWrite()) {
+    return;
+  }
+
   int lineHeight = 8;                // Height of each line of text
   int yPosition = line * lineHeight; // Calculate y position based on line number
 
@@ -89,6 +100,7 @@ void executeCommand()
     CommandAndParams cp(command);
     if (cp.command == "id")
     {
+      isHub = true;
       Serial.printf("id:%u\n", mesh.getNodeId());
     }
     else
@@ -102,6 +114,7 @@ void executeCommand()
 // features need to be implemented
 void setLightColor(int r, int g, int b)
 {
+  if (mock) return;
   uint32_t color = sspixel.Color(r, g, b);
   sspixel.setPixelColor(0, color);
   sspixel.show();
@@ -121,10 +134,15 @@ void setOptionsNumber(int num)
   options = num;
   choosed = -1;
   submitted = -1;
+
+  if (mock) {
+    return;
+  }
   updateDisplay("", 5);
   origin_position = encoder_position;
   updateDisplay(String(num) + String(" options provided."), 1);
   updateDisplay(name + String(", what's your option?"), 2);
+  setLightColor(255, 255, 0);
 }
 
 void select(int num) {
@@ -163,14 +181,28 @@ void submitAnswer(int idx)
   submitted = idx;
   String res = String(submitted);
   updateDisplay(String("Option ") + res + String(" is submitted"), 5);
+  setLightColor(255, 255, 255);
 
   mesh.sendBroadcast(s);
+}
+
+void oneTimeTask() {
+  long idx = random(0, options - 1);
+  Serial.printf("mocking: option %d\n", idx);
+  submitAnswer(idx);
+}
+Task* taskXXXX;
+void submitRandomAnswer() {
+  Serial.println("mocking");
+  taskXXXX = new Task(5000, TASK_ONCE, &oneTimeTask);
+  userScheduler.addTask(*taskXXXX);
+  taskXXXX->enable();
 }
 
 // Needed for painless library
 void receivedCallback(uint32_t from, String &msg)
 {
-  Serial.printf("startHere: Received from %u msg=%s\n", from, msg.c_str());
+  Serial.printf("Received from %u msg=%s\n", from, msg.c_str());
   CommandAndParams cp(msg);
   if (cp.command == "a")
   {
@@ -184,6 +216,9 @@ void receivedCallback(uint32_t from, String &msg)
   if (cp.command == "o")
   {
     setOptionsNumber(cp.params[0].toInt());
+    if (mock) {
+      submitRandomAnswer();
+    }
   }
   if (cp.command == "n")
   {
@@ -194,7 +229,7 @@ void receivedCallback(uint32_t from, String &msg)
 
 void newConnectionCallback(uint32_t nodeId)
 {
-  Serial.printf("--> startHere: New Connection, nodeId = %u\n", nodeId);
+  Serial.printf("New Connection, nodeId = %u\n", nodeId);
 }
 
 void changedConnectionCallback()
@@ -219,7 +254,8 @@ void setup_seesaw()
 
   if (!ss.begin(SEESAW_ADDR) || !sspixel.begin(SEESAW_ADDR))
   {
-    Serial.println("Couldn't find seesaw on default address, working as Smart Hub");
+    mock = true;
+    Serial.println("Couldn't find seesaw on default address, working in mocking mode");
     return;
   }
   Serial.println("seesaw started");
@@ -252,9 +288,8 @@ void setup_seesaw()
   ss.enableEncoderInterrupt();
 }
 
-void setup_screen()
+void setup_display()
 {
-
   // Initialize with the I2C addr 0x3C (for the 128x64)
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
   {
@@ -265,16 +300,16 @@ void setup_screen()
   // display.setTextSize(1);      // Normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE); // Draw white text
   display.setCursor(0, 0);             // Start at top-left corner
-  // display.cp437(true);         // Use full 256 char 'Code Page 437' font
-
-  
+  // display.cp437(true);         // Use full 256 char 'Code Page 437' font 
 }
 
 void setup()
 {
+  randomSeed(analogRead(0));
+
   Serial.begin(115200);
   setup_seesaw();
-  setup_screen();
+  setup_display();
 
   // mesh.setDebugMsgTypes(ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE);  // all types on
   mesh.setDebugMsgTypes(ERROR | STARTUP); // set before init() so that you can see startup messages
@@ -287,7 +322,8 @@ void setup()
 
   userScheduler.addTask(taskSendMessage);
   userScheduler.addTask(taskExecuteCommand);
-  taskSendMessage.enable();
+
+  // taskSendMessage.enable();
   taskExecuteCommand.enable();
 }
 
