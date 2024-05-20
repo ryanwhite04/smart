@@ -6,7 +6,7 @@ import json
 import dateutil
 from dateutil import parser
 
-from flask import current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import send_file, current_app, flash, jsonify, redirect, render_template, request, session, url_for, send_from_directory
 from flask_login import current_user, login_required, login_user, logout_user
 from flask_socketio import disconnect, emit, join_room, leave_room
 from markupsafe import escape
@@ -26,6 +26,9 @@ from . import bp
 def load_user(id):
     return User.query.get(int(id))
 
+@bp.route('/public/<path:filename>')
+def public_files(filename):
+    return send_file(f"public/{filename}")
 
 @bp.route('/dashboard/', methods=['GET'])
 def dashboard():
