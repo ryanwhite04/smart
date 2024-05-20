@@ -134,7 +134,7 @@ void setOptionsNumber(int num)
   options = num;
   choosed = -1;
   submitted = -1;
-  
+
   if (mock) {
     return;
   }
@@ -323,7 +323,7 @@ void setup()
   userScheduler.addTask(taskSendMessage);
   userScheduler.addTask(taskExecuteCommand);
 
-  taskSendMessage.enable();
+  // taskSendMessage.enable();
   taskExecuteCommand.enable();
 }
 
