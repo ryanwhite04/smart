@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block head %}
+<script>
+    // send the user's timezone to the server if they came from the login page.
+    $(document).ready(function () {
+        let referrer = document.referrer;
+        let setTimezoneUrl = "{{ url_for('main.set_timezone') }}";
+
+        if (referrer.includes('login') && !sessionStorage.getItem('timezoneSent')) {
+            let userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            $.post(setTimezoneUrl, { timezone: userTimezone });
+            sessionStorage.setItem('timezoneSent', true);
+        }
+    });
+</script>
+{% endblock head %}
+{% block header %}
+<h1>This is the Clicker Admin.</h1>
+
+{% endblock header %}
+{% block content %}
+<div class="container pt-4">
+    <div class="row">
+        <div class="col-sm-6 d-flex justify-content-center mx-auto">
+            <div class="container">
+                <h4>Instructions:</h4>
+                <ul class="border p-2 about">
+                    <li>Insert items here</li>
+                </ul>
+                {% if not current_user.is_authenticated %}
+                <div class="container py-3 ">
+                    <a href="{{ url_for('main.login') }}" class="btn btn-primary">Login or register</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock content %}

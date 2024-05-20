@@ -1,0 +1,156 @@
+/* Base styling for the site */
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f4;
+  color: #333;
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0;
+  padding: 20px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Noto Sans', Arial, sans-serif;
+  padding: 0.25rem;
+  color: #333; /* Neutral dark grey for all headers */
+}
+
+.bg, .col-sm, .col-md-3, .col-md-9, .col-sm-3, .col-sm-6, .col-sm-9, .col-md-12 {
+  background-color: white; /* Light grey background for consistent appearance */
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+
+}
+.col-sm-6{
+  border-radius: 8px;
+}
+
+.user, .opponent, .moderator, .status {
+  border-radius: 0.3rem;
+  padding: 0.75rem 1rem;
+  margin: 0.3rem;
+  display: block;
+  clear: both;
+  color: #fff; /* White text for readability */
+  text-align: center;
+}
+
+.user {
+  background-color: #999; /* Grey for user */
+  float: right;
+}
+
+.opponent {
+  background-color: #777; /* Darker grey for opponent */
+  float: left;
+}
+
+.moderator {
+  background-color: #bbb; /* Light grey for moderator */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.status {
+  background-color: #aaa; /* Medium grey for status */
+  color: #000; /* Black text for contrast */
+}
+
+input[type="text"], input[type="password"] {
+  background-color: #fff; /* White background */
+  color: #333; /* Dark grey text for visibility */
+  padding: 10px; /* Adequate padding for text input */
+  border: 1px solid #ccc; /* Light grey border */
+  border-radius: 4px; /* Slight rounding of corners */
+}
+
+input::placeholder {
+  color: #aaa; /* Light grey placeholder text */
+}
+
+
+button {
+  background-color: #555; /* Dark grey for buttons */
+  color: white;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #333; /* Even darker grey for button hover */
+}
+
+.flash-messages-box, .countdown_container {
+  min-height: 3rem;
+  background: none;
+}
+
+.scrollable {
+  overflow-y: scroll;
+  height: 20rem;
+}
+
+.mwmc {
+  min-width: max-content;
+}
+
+.tdwidth70 {
+  width: 70%;
+}
+
+.about, .glyphbox {
+  text-align: left;
+}
+
+#countdown {
+  visibility: hidden;
+  font-family: Monaco, monospace;
+  font-size: 1.8rem;
+  font-weight: bold;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+div>.user, div>.moderator, div>.opponent, div>.status {
+  animation: fadeIn 0.5s ease-in;
+}
+
+h1 {
+  color: #0275d8;
+}
+.controls {
+  margin-bottom: 20px;
+}
+select, input[type=date], input[type=number], button {
+  padding: 8px;
+  margin-right: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box; /* Adds padding and border to element's total width and height */
+}
+button {
+  background-color: #0275d8;
+  color: white;
+  cursor: pointer;
+}
+button:hover {
+  background-color: #025aa5;
+}
+.chart-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  align-items: center;
+}
+.chart {
+  background-color: white;
+  border: 1px solid #ddd;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  margin: 10px;
+  padding: 15px;
+  width: calc(50% - 20px);
+  box-sizing: border-box;
+  height: 380px;
+}
