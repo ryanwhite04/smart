@@ -1,0 +1,12 @@
+<div class="container pt-3">
+    <div class="row text-center">
+        <form action="#" method="post">
+            {{ email_form.hidden_tag() }}
+            <!-- button disabled until all fields have been filled -->
+            <p>{{ email_form.old_email(size=32, required=true, class="required", onkeyup="enableSubmit()") }}</p>
+            <p>{{ email_form.new_email(size=32, required=true, class="required", onkeyup="enableSubmit()") }}</p>
+            <p>{{ email_form.repeat_email(size=32, required=true, class="required", onkeyup="enableSubmit()") }}</p>
+            <p>{{ email_form.change_email(class="btn btn-primary", disabled=true) }}</p>
+        </form>
+    </div>
+</div>

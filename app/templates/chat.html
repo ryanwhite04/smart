@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% set active_page = 'game' %}
+
+{% block title %}
+Chat
+{% endblock title %}
+
+{% block head %}
+<script type="text/javascript" src="//cdn.socket.io/4.4.1/socket.io.min.js"></script>
+<script type="text/javascript" charset="utf-8">
+    let socket;
+    $(document).ready(function () {
+        socket = io.connect('http://' + document.domain + ':' + location.port + '/game');
+        socket.on('connect', function () {
+            socket.emit('joined', {});
+        });
+        socket.on('status', function (data) {
+            $('#chat').append($('<span>').text('<' + data.msg + '>').addClass('status')).append('<br>');
+            $('#chat').scrollTop($('#chat')[0].scrollHeight);
+        });
+        socket.on('message', function (data) {
+            let senderUsername = data.msg.split(':')[0];
+            // Check the sender's username and apply the corresponding class
+            let messageClass;
+            if (senderUsername === "{{ current_user.username }}") {
+                messageClass = 'user';
+            } else if (senderUsername === "Moderator") {
+                messageClass = 'moderator';
+            } else {
+                messageClass = 'opponent';
+            }
+            $('#chat').append($('<span>').text(data.msg).addClass(messageClass)).append('<br>');
+            $('#chat').scrollTop($('#chat')[0].scrollHeight);
+        });
+
+        $('#message-form').submit(function (e) {
+            e.preventDefault();
+            sendMessage();
+        });
+        function sendMessage() {
+            text = $('#text').val();
+            $('#text').val('');
+            $('#send').prop('disabled', true); // Disable the "Send" button after sending the message
+            socket.emit('text', { msg: text });
+        }
+    });
+
+    function request_question() {
+        socket.emit('question', {}, function () {
+        });
+        let duration = 30; // 30 seconds countdown
+        let display = document.getElementById('countdown');
+        let button = document.getElementById('triggerQuestion');
+        startCountdown(duration, display, button);
+
+    }
+
+    function leave_room() {
+        socket.emit('left', {}, function () {
+            socket.disconnect();
+            // go back to the login page
+            window.location.href = "{{ url_for('main.lobby') }}";
+        });
+    }
+
+    // disable send button until text is entered
+    $(document).ready(function () {
+        $('#text').on('input', function () {
+            const inputIsEmpty = $(this).val().trim() === '';
+            $('#send').prop('disabled', inputIsEmpty);
+        });
+    });
+
+    // disconnect from the game when the user leaves the page
+
+    window.addEventListener('beforeunload', function (e) {
+        socket.emit('left', {}, function () {
+            socket.disconnect();
+        });
+        e.returnValue = Null;
+    });
+
+    window.addEventListener('pagehide', function (e) {
+        socket.emit('left', {}, function () {
+            socket.disconnect();
+        });
+        e.returnValue = Null;
+    });
+
+    window.addEventListener('unload', function (e) {
+        socket.emit('left', {}, function () {
+            socket.disconnect();
+        });
+    });
+    // countdown
+    function startCountdown(duration, display, button) {
+        button.disabled = true;
+        display.style.visibility = 'visible';
+        let timer = duration, minutes, seconds;
+        let countdown = setInterval(function () {
+            minutes = parseInt(timer / 60, 10);
+            seconds = parseInt(timer % 60, 10);
+
+            minutes = minutes < 10 ? "0" + minutes : minutes;
+            seconds = seconds < 10 ? "0" + seconds : seconds;
+
+            display.textContent = minutes + ":" + seconds;
+
+            if (--timer < 0) {
+                clearInterval(countdown);
+                display.textContent = "00:30";
+                button.disabled = false;
+                display.style.visibility = 'hidden';
+            }
+        }, 1000);
+    }
+
+
+</script>
+{% endblock head %}
+{% block header %}
+<h1>Game #{{ room }}</h1>
+{% endblock header %}
+{% block content %}
+<div class="container pt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div id="chat" class="form-control scrollable"></div>
+            <form id="message-form" class="d-flex input-container mt-1">
+                <input id="text" class="form-control me-2" placeholder="Enter your message here">
+                <button id="send" class="btn btn-primary" type="submit" disabled>Send</button>
+            </form>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-12 d-flex justify-content-center mx-auto pb-5">
+            <div class="container">
+                <div class="btn-group" role="group" aria-label="Basic mixed styles example">
+                    <button type="button" id="countdown" class="btn btn-warning">00:30</button>
+                    <button type="button" id="triggerQuestion" class="btn btn-success"
+                        onclick="request_question();">Trigger a Question</button>
+                    <button type="button" class="btn btn-danger" onclick="leave_room();">Leave Game</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock content %}

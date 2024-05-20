@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block header %}
+<h1>{{ title }}</h1>
+{% endblock header %}
+{% block content %}
+<div class="container pt-4">
+    <div class="row text-center">
+        <div class="col-sm">
+            <h4>Change Username</h4>
+            {% include "change_username_form.html" %}
+        </div>
+        <div class="col-sm">
+            <h4>Change Email</h4>
+            {% include "change_email_form.html" %}
+        </div>
+        <div class="col-sm">
+            <h4>Change Password</h4>
+            {% include "change_password_form.html" %}
+        </div>
+    </div>
+</div>
+{% endblock content %}

@@ -1,0 +1,32 @@
+<nav class="navbar navbar-expand-lg bg-body-tertiary sticky-top">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('main.lobby') }}">Clicker Admin</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarTogglerDemo02"
+            aria-controls="navbarTogglerDemo02" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarTogglerDemo02">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'About' in title }}" href="{{ url_for('main.about') }}">About</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'Lobby' in title }}" href="{{ url_for('main.lobby') }}">Lobby</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'Profile' in title }}"
+                        href="{{ url_for('main.profile') }}">Profile</a>
+                </li>
+                {% if current_user.is_admin == true %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'Admin Dashboard' in title }}"
+                        href="{{ url_for('main.admin') }}">Admin</a>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.logout') }}">Logout</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>

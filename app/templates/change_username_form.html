@@ -1,0 +1,11 @@
+<div class="container pt-3">
+    <div class="row text-center">
+        <form action="#" method="post">
+            {{ username_form.hidden_tag() }}
+            <!-- button disabled until all fields have been filled -->
+            <p>{{ username_form.new_username(size=32, required=true, class="required", onkeyup="enableSubmit()") }}</p>
+            <p>{{ username_form.repeat_username(size=32, required=true, class="required", onkeyup="enableSubmit()") }}</p>
+            <p>{{ username_form.change_username(class="btn btn-primary", disabled=true) }}</p>
+        </form>
+    </div>
+</div>

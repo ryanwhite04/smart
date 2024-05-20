@@ -1,13 +1,15 @@
 import { css, html, LitElement } from "https://esm.sh/lit@3.1.2";
+import "./smart-device.js";
 
 class SmartUser extends LitElement {
   static get properties() {
     return {
       uuid: { type: String },
-      name: { type: String },
-      teacher: { type: Boolean },
-      deviceId: { type: String },
-      connected: { type: Boolean }
+      text: { type: String },
+      // teacher: { type: Boolean },
+      device: { type: String }, // uuid of the last connected device
+      bound: { type: Boolean }, // whether the user is bound to a device
+      debug: { type: Boolean, reflect: true },
     };
   }
 
@@ -20,94 +22,118 @@ class SmartUser extends LitElement {
           border-radius: 8px;
           margin: 1em 0;
         }
+        details[open] summary {
+          padding-bottom: 16px;
+        }
+        .details {
+          padding: 16px;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          background: #FFAAAA;
+        }
+        details.connected {
+          background: lightgreen;
+        }
       `;
   }
 
   constructor() {
     super();
     this.uuid = '';
-    this.name = '';
-    this.teacher = false;
-    this.deviceId = null;
-    this.connected = false;
-    this.port = null;
-    this.reader = null;
-    this.writer = null;
+    this.text = '';
+    // this.teacher = false;
+    this.device = '';
   }
 
   connectedCallback() {
     super.connectedCallback();
     if (this.uuid) {
-      this.loadUserData();
-      this.addToLocalStorage();
+      this.load();
+      this.save();
     }
   }
 
-  addToLocalStorage() {
-    const users = JSON.parse(localStorage.getItem('users')) || [];
-    if (!users.includes(this.uuid)) {
-      users.push(this.uuid);
-      localStorage.setItem('users', JSON.stringify(users));
+  load() {
+    const data = JSON.parse(localStorage.getItem(this.uuid));
+    if (data) {
+      for (const key in data) {
+        this[key] = data[key];
+      }
     }
-    this.saveData();
+    this.requestUpdate();
   }
-
-  saveData() {
-    const userData = {
-      uuid: this.uuid,
-      name: this.name,
-      teacher: this.teacher,
-      deviceId: this.deviceId
-    };
-    localStorage.setItem(this.uuid, JSON.stringify(userData));
-  }
-
-  loadUserData() {
-    const userData = JSON.parse(localStorage.getItem(this.uuid));
-    if (userData) {
-      this.name = userData.name;
-      this.teacher = userData.teacher;
-      this.deviceId = userData.deviceId;
+  
+  save() {
+    const data = {};
+    for (const key in this.constructor.properties) {
+      data[key] = this[key];
     }
+    localStorage.setItem(this.uuid, JSON.stringify(data));
+    this.requestUpdate();
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     localStorage.removeItem(this.uuid);
-    const users = JSON.parse(localStorage.getItem('users')) || [];
-    const updatedUsers = users.filter(uuid => uuid !== this.uuid);
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
   }
 
-  render() {
-    return html`
-        <div>
-          <input type="text" placeholder="Name" @input="${(e) => {
-            this.name = e.target.value;
-            this.saveData();
-          }}" .value="${this.name}">
-          <label>
-            <input type="checkbox" @change="${(e) => {
-              this.teacher = e.target.checked;
-              this.saveData();
-            }}" ?checked="${this.teacher}"> Teacher
-          </label>
-          <button @click="${this.remove}">Remove</button>
-          <p>Device ID: ${this.deviceId || "Not Connected"}</p>
-        </div>
-      `;
+  onDeviceConnect(event) {
+    this.device = event.target.uuid;
+    this.save();
   }
 
   remove() {
-    this.dispatchEvent(new CustomEvent("remove-user", { detail: this.uuid }));
-    this.remove();
+    this.dispatchEvent(new CustomEvent("remove", { detail: this.uuid }));
+    super.remove();
   }
 
   firstUpdated() {
     if (this.uuid) {
-      this.loadUserData();
+      this.load();
     }
   }
+
+  get connected() {
+    const device = this.renderRoot.getElementById("device");
+    if (device) {
+      return device.connected;
+    }
+    return false;
+  }
+
+  handleMessage(event) {
+    const message = event.detail;
+    if (message.startsWith("id")) {
+      this.device = message.split(":")[1];
+      this.save();
+    } else {
+      // let the event bubble up
+      this.dispatchEvent(new CustomEvent("message", { detail: message }));
+    }
+  }
+
+  render() {
+    return html`
+        <details>
+          <summary>
+            <input type="text" placeholder="Name" @input="${(e) => {
+              this.text = e.target.value;
+              this.save();
+            }}" .value="${this.text}">
+            <label>
+              <input type="checkbox" @change="${(e) => {
+                this.teacher = e.target.checked;
+                this.saveData();
+              }}" ?checked="${this.teacher}"> Teacher
+            </label>
+          </summary>
+          <p>${this.device}</p>
+          <button @click="${this.remove}">Remove</button>
+          <smart-device id="device" ?debug=${this.debug} uuid=${this.device} @message=${this.handleMessage.bind(this)} @connect=${this.onDeviceConnect.bind(this)}></smart-device>
+        </details>
+      `;
+  }
+
 }
 
 customElements.define("smart-user", SmartUser);

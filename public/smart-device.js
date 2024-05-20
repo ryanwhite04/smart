@@ -6,13 +6,23 @@ class SmartDevice extends LitElement {
   
     static get properties() {
       return {
-        connected: { type: Boolean },
+        uuid: { type: String },
+        connected: { type: Boolean, reflect: true },
         messages: { type: Array },
+        debug: { type: Boolean, reflect: true },
       };
     }
   
     static get styles() {
       return css`
+        @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0');
+        .material-symbols-outlined {
+          font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24
+        }
         :host {
           display: block;
           padding: 16px;
@@ -29,6 +39,7 @@ class SmartDevice extends LitElement {
   
     constructor() {
       super();
+      this.uuid = this.uuid || 0;
       this.connected = false;
       this.messages = [];
       this.port = null;
@@ -47,6 +58,7 @@ class SmartDevice extends LitElement {
         this.reader = this.port.readable.getReader();
         this.writer = this.port.writable.getWriter();
         this.connected = true;
+        await this.write("id");
         this.read();
       } catch (error) {
         console.error("Connection failed:", error);
@@ -114,7 +126,8 @@ class SmartDevice extends LitElement {
             const message = buffer.slice(0, newlineIndex).trim(); // Trim to remove newline character
             if (message) {
               this.messages = [message, ...this.messages];
-              this.requestUpdate();
+              // create a new Custom Event for the message
+              this.handleMessage(message);
             }
             buffer = buffer.slice(newlineIndex + 1);
           }
@@ -123,6 +136,13 @@ class SmartDevice extends LitElement {
         console.error("Read error:", error);
       }
     }
+
+    handleMessage(message) {
+      this.dispatchEvent(new CustomEvent("message", {
+        detail: message,
+        bubbles: true,
+      }));
+    }
   
     async send() {
       const input = this.shadowRoot.getElementById("message");
@@ -130,18 +150,43 @@ class SmartDevice extends LitElement {
       console.log(response);
       input.value = "";
     }
+
+    renderMessage(message) {
+      return html`
+        <li><pre>${message}</pre></li>
+      `;
+    }
+
+    renderLinkButton(connected) {
+      const click = connected ? this.disconnect : this.connect;
+      const icon = connected ? "link_off" : "link";
+      return html`
+        <button @click="${click}">
+          <span class="material-symbols-outlined">${icon}</span>
+        </button>
+      `;
+    }
+
+    renderDebugInputs(connected) {
+      return connected ? html`
+        <input type="color" id="color" value="#000000">
+        <input type="text" id="message" placeholder="Enter message to send">
+        <button type="submit" @click="${this.send}">Send</button>
+      ` : "";
+    }
   
     render() {
       return html`
-        <button @click="${this.connect}">${
-        this.connected ? "Disconnect" : "Connect"
-      }</button>${this.connected ? html`
-          <input type="text" id="message" placeholder="Enter message to send">
-          <button type="submit" @click="${this.send}">Send</button>
-        ` : ""}
-        <pre>${this.messages[0]}</div>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+        ${this.renderLinkButton(this.connected)}
+        ${this.debug ? html`
+          <div>${this.uuid}</div>
+          ${this.renderDebugInputs(this.connected)}
+          <ul id="messages">
+            ${this.messages.map(message => this.renderMessage(message))}
+          </ul>` : ""}
       `;
     }
   }
   
-  customElements.define("smart-device", SmartDevice);
+  customElements.define("smart-device", SmartDevice); 

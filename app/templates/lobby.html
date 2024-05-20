@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block head %}
+<script src="//cdn.socket.io/4.4.1/socket.io.min.js"></script>
+<script>
+  let socket;
+  $(document).ready(function () {
+    socket = io.connect('http://' + document.domain + ':' + location.port + '/lobby');
+    socket.on('connect', function () {
+      socket.emit('joined', {});
+    });
+    socket.on('status', function (data) {
+      $('#chat').append($('<span>').text('<' + data.msg + '>').addClass('status')).append('<br>');
+      $('#chat').scrollTop($('#chat')[0].scrollHeight);
+    });
+    socket.on('message', function (data) {
+      let senderUsername = data.msg.split(':')[0];
+      // Check the sender's username and apply the corresponding class
+      let messageClass;
+      if (senderUsername === "{{ current_user.username }}") {
+        messageClass = 'user';
+      } else if (senderUsername === "Moderator") {
+        messageClass = 'moderator';
+      } else {
+        messageClass = 'opponent';
+      }
+      $('#chat').append($('<span>').text(data.msg).addClass(messageClass)).append('<br>');
+      $('#chat').scrollTop($('#chat')[0].scrollHeight);
+    });
+    socket.on('invite', function (data) {
+      // msg format is game id, invitor,playernames-
+      const stringArray = parseCommaDelimitedText(data.msg);
+
+      console.log(`Inviting players: ${data.msg}`);
+
+      if (!stringArray.includes("{{ username }}")) {
+        return
+      }
+
+      const isAccepted = displayInviteDialog(stringArray[1]);
+
+
+      if (isAccepted) {
+        // User clicked "Yes"
+        // Perform the logic for accepting the invitation
+        window.location.href = "{{ url_for('main.chat',chat_id="") }}" + "/" + stringArray[0];
+      } else {
+        // User clicked "No" or closed the dialog
+        // Perform the logic for rejecting the invitation
+      }
+    });
+    $('#message-form').submit(function (e) {
+      e.preventDefault();
+      sendMessage();
+    });
+
+
+    function sendMessage() {
+      text = $('#text').val();
+      $('#text').val('');
+      $('#send').prop('disabled', true); // Disable the "Send" button after sending the message
+      socket.emit('text', { msg: text });
+    }
+    function leave_room() {
+      socket.emit('left', {}, function () {
+        socket.disconnect();
+
+        // go back to the login page
+        window.location.href = "{{ url_for('main.logout') }}";
+      });
+    }
+  });
+
+
+  // disable send button until text is entered
+  $(document).ready(function () {
+    $('#text').on('input', function () {
+      const inputIsEmpty = $(this).val().trim() === '';
+      $('#send').prop('disabled', inputIsEmpty);
+    });
+  });
+
+
+  function displayInviteDialog(playerName) {
+    return confirm(`Player ${playerName} has invited you to a game. Do you accept?`);
+  }
+  function parseCommaDelimitedText(text) {
+    // Trim any leading or trailing white spaces from the text
+    text = text.trim();
+
+    // Split the text using commas as the delimiter
+    const array = text.split(',');
+
+    // Trim any leading or trailing white spaces from each array element
+    const trimmedArray = array.map(item => item.trim());
+
+    return trimmedArray;
+  }
+
+  // disconnect from the game when the user leaves the page
+
+  window.addEventListener('beforeunload', function (e) {
+    socket.emit('left', {}, function () {
+      socket.disconnect();
+    });
+    e.returnValue = Null;
+  });
+
+  window.addEventListener('pagehide', function (e) {
+    socket.emit('left', {}, function () {
+      socket.disconnect();
+    });
+    e.returnValue = Null;
+  });
+
+  window.addEventListener('unload', function (e) {
+    socket.emit('left', {}, function () {
+      socket.disconnect();
+    });
+  });
+
+</script>
+{% endblock head %}
+{% block header %}
+<h1>Pre-Game Lobby</h1>
+{% endblock header %}
+{% block content %}
+<div class="container pt-4">
+  <div class="row">
+    <div class="col-md-3">
+      <h4>User List</h4>
+      <ul class="list-group bg-dark" id="user-list">
+        {% for user in users %}
+        <li class="list-group-item">
+          <div class="custom-control custom-checkbox">
+            <input type="checkbox" class="custom-control-input" id="{{ user.id }}" name="users[]" value="{{ user.id }}">
+            <label id="{{ user.username }}" class="custom-control-label" for="{{ user.id }}">{{ user.username }}</label>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      <button type="submit" class="btn btn-primary mt-3 mb-2" id="invite-btn" disabled
+        onclick="invite_players()">Invite</button>
+    </div>
+
+    <div class="col-md-9">
+      <h4>Lobby</h4>
+      <div id="chat" class="form-control scrollable"></div>
+      <form id="message-form" class="d-flex input-container mt-1">
+        <input id="text" class="form-control me-2" placeholder="Enter your message here">
+        <button id="send" class="btn btn-primary" type="submit" disabled>Send</button>
+      </form>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Get the user list container
+  const userList = document.getElementById('user-list');
+  // Get the "Invite" button
+  const inviteBtn = document.getElementById('invite-btn');
+  // Get all the checkboxes inside the user list
+  const checkboxes = userList.querySelectorAll('input[type="checkbox"]');
+
+  // Function to handle checkbox change event
+  function handleCheckboxChange() {
+    // Check if any checkbox is checked
+    const isChecked = Array.from(checkboxes).some(checkbox => checkbox.checked);
+    // Enable or disable the "Invite" button based on the checkbox state
+    inviteBtn.disabled = !isChecked;
+  }
+
+
+  // Function to handle invite players
+  function invite_players() {
+    // Get the selected user IDs and map them to usernames
+    const selectedUsernames = Array.from(checkboxes)
+      .filter(checkbox => checkbox.checked)
+      .map(checkbox => checkbox.nextElementSibling.textContent.trim());
+
+    // Create a comma-delimited list of usernames
+    const usernamesList = selectedUsernames.join(', ');
+
+    // Perform the invite action with selected users
+    console.log("Inviting players:", selectedUsernames);
+    socket.emit('invite', { msg: usernamesList });
+  }
+
+  // Add event listener to each checkbox
+  checkboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', handleCheckboxChange);
+  });
+
+</script>
+
+{% endblock content %}

@@ -1,0 +1,9 @@
+<div class="container pt-3">
+    <form action="#" method="post">
+        {{ login_form.hidden_tag() }}
+        <!-- button disabled until all fields have been filled -->
+        <p>{{ login_form.username_login(size=32, required=true, class="required", onkeyup="enableSubmit()") }}</p>
+        <p>{{ login_form.password(size=32, required=true, class="required", onkeyup="enableSubmit()") }}</p>
+        <p>{{ login_form.login(class="btn btn-primary", disabled=true) }}</p>
+    </form>
+</div>
