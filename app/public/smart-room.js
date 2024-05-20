@@ -86,10 +86,7 @@ class SmartRoom extends LitElement {
   }
 
   addUser() {
-    const user = document.createElement('smart-user');
-    user.debug = this.debug;
-    this.appendChild(user);
-    this.users.push(user.uuid);
+    this.users.push(crypto.randomUUID());
     this.save();
   }
 
@@ -107,14 +104,19 @@ class SmartRoom extends LitElement {
   render() {
     return html`
         <details class="room-details">
-          <summary>${this.text}</summary>
+          <summary>
+            <input type="text" placeholder="Class Name" @input="${(e) => {
+              this.text = e.target.value;
+              this.save();
+            }}" .value="${this.text}">
+          </summary>
           <button @click="${this.addUser}">Add User</button>
           <div class="users">
-            ${this.users.map(userUUID => html`
+            ${this.users.map(uuid => html`
               <smart-user
-                uuid="${userUUID}"
+                uuid="${uuid}"
                 ?debug=${this.debug}
-                @remove-user="${() => this.removeUser(userUUID)}"
+                @remove-user="${() => this.removeUser(uuid)}"
               ></smart-user>
             `)}
           </div>
