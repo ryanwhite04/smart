@@ -43,7 +43,15 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 painlessMesh mesh;
 
 Scheduler userScheduler; // to control your personal task
+void executeCommand();
+Task taskExecuteCommand(TASK_SECOND * 1, TASK_FOREVER, &executeCommand);
+String name;
 
+int options = -1;
+int chosen = -1;
+int submitted = -1;
+int origin_position = 0;
+Task* task;
 // C3 has no buildin led
 // const byte ledPin = LED_BUILTIN;
 
@@ -57,9 +65,6 @@ void broadcast(String message)
 void updateDisplay(String message, int line)
 {
   if (mock) {
-    return;
-  }
-  if (!display.availableForWrite()) {
     return;
   }
 
@@ -98,9 +103,6 @@ void executeCommand()
   taskExecuteCommand.setInterval(random(TASK_SECOND * 0.5, TASK_SECOND * 1));
 }
 
-Task taskExecuteCommand(TASK_SECOND * 1, TASK_FOREVER, &executeCommand);
-
-
 // features need to be implemented
 void setLightColor(int r, int g, int b)
 {
@@ -110,12 +112,6 @@ void setLightColor(int r, int g, int b)
   sspixel.show();
 }
 
-String name;
-
-int options = -1;
-int chosen = -1;
-int submitted = -1;
-int origin_position = 0;
 void setOptionsNumber(int num)
 {
   if (num <= 1) {
@@ -168,7 +164,7 @@ void oneTimeTask() {
   Serial.printf("mocking: option %d\n", idx);
   submitAnswer(idx);
 }
-Task* task;
+
 void submitRandomAnswer() {
   Serial.println("mocking");
   task = new Task(5000, TASK_ONCE, &oneTimeTask);
@@ -272,10 +268,12 @@ void setup_display()
     Serial.println("Couldn't find SSD1306, working as Smart Hub");
     return;
   }
+  delay(10);
   display.clearDisplay();
-  // display.setTextSize(1);      // Normal 1:1 pixel scale
+  display.setTextSize(1);      // Normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE); // Draw white text
   display.setCursor(0, 0);             // Start at top-left corner
+  display.display();
   // display.cp437(true);         // Use full 256 char 'Code Page 437' font 
 }
 
@@ -299,8 +297,12 @@ void setup()
   pinMode(D2, INPUT_PULLUP);
   mock = digitalRead(D2);
   Serial.begin(115200);
-  mock || setup_seesaw();
-  mock || setup_display();
+  if (!mock) {
+    Serial.printf("Setting up peripherals");
+    setup_seesaw();
+    setup_display();
+  }
+
   setup_mesh();
 }
 
