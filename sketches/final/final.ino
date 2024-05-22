@@ -43,8 +43,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 painlessMesh mesh;
 
 Scheduler userScheduler; // to control your personal task
-void executeCommand();
-Task taskExecuteCommand(TASK_SECOND * 1, TASK_FOREVER, &executeCommand);
+
 String name;
 
 int options = -1;
@@ -56,6 +55,23 @@ Task* task;
 // const byte ledPin = LED_BUILTIN;
 
 bool mock = false;
+#define BUTTON_PIN GPIO_NUM_2 // GPIO 2 (D1)
+#define BUTTON_PIN_BITMASK (1ULL << BUTTON_PIN)
+
+RTC_DATA_ATTR int bootCount = 0;
+
+void print_wakeup_reason() {
+  esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+
+  switch (wakeup_reason) {
+    case ESP_SLEEP_WAKEUP_EXT0: Serial.println("Wakeup caused by external signal using RTC_IO"); break;
+    case ESP_SLEEP_WAKEUP_EXT1: Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
+    case ESP_SLEEP_WAKEUP_TIMER: Serial.println("Wakeup caused by timer"); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD: Serial.println("Wakeup caused by touchpad"); break;
+    case ESP_SLEEP_WAKEUP_ULP: Serial.println("Wakeup caused by ULP program"); break;
+    default: Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason); break;
+  }
+}
 
 void broadcast(String message)
 {
@@ -84,6 +100,8 @@ void updateDisplay(String message, int line)
   display.display();
 }
 
+void executeCommand();
+Task taskExecuteCommand(TASK_SECOND * 0.1, TASK_FOREVER, &executeCommand);
 void executeCommand()
 {
   String command;
@@ -100,8 +118,28 @@ void executeCommand()
       broadcast(command);
     }
   }
-  taskExecuteCommand.setInterval(random(TASK_SECOND * 0.5, TASK_SECOND * 1));
+  taskExecuteCommand.setInterval(random(0, TASK_SECOND * 0.1));
 }
+
+void check_sleep();
+Task taskCheckSleep(TASK_SECOND * 1, TASK_FOREVER, &check_sleep);
+void check_sleep() {
+  if (mock) return;
+  if (digitalRead(BUTTON_PIN) == LOW) {
+    Serial.println("Pin is LOW, device will go to sleep");
+
+    // Configure the wake-up source
+    esp_sleep_enable_ext0_wakeup(BUTTON_PIN, 1); // 0 = Low
+    Serial.println("Wake-up source configured");
+
+    // Go to sleep now
+    Serial.println("Going to sleep now");
+    esp_deep_sleep_start();
+  } else {
+    Serial.println("Pin is HIGH, device remains awake");
+  }
+}
+
 
 // features need to be implemented
 void setLightColor(int r, int g, int b)
@@ -167,7 +205,7 @@ void oneTimeTask() {
 
 void submitRandomAnswer() {
   Serial.println("mocking");
-  task = new Task(5000, TASK_ONCE, &oneTimeTask);
+  task = new Task(2000, TASK_ONCE, &oneTimeTask);
   userScheduler.addTask(*task);
   task->enable();
 }
@@ -213,6 +251,39 @@ void changedConnectionCallback()
 void nodeTimeAdjustedCallback(int32_t offset)
 {
   Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(), offset);
+}
+
+void setup_sleep()
+{
+  Serial.println("Setup start");
+
+  // Increment boot number and print it every reboot
+  ++bootCount;
+  Serial.println("Boot number: " + String(bootCount));
+
+  // Print the wakeup reason for ESP32
+  print_wakeup_reason();
+
+  // Set the pin mode with internal pull-up
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  Serial.println("Pin mode set to INPUT_PULLUP");
+
+  // Check the pin state before going to sleep
+  if (digitalRead(BUTTON_PIN) == LOW) {
+    Serial.println("Pin is LOW, device will go to sleep");
+
+    // Configure the wake-up source
+    esp_sleep_enable_ext0_wakeup(BUTTON_PIN, 1); // 0 = Low
+    Serial.println("Wake-up source configured");
+
+    // Go to sleep now
+    Serial.println("Going to sleep now");
+    esp_deep_sleep_start();
+  } else {
+    Serial.println("Pin is HIGH, device will not sleep");
+  }
+
+  Serial.println("Setup complete");
 }
 
 void setup_seesaw()
@@ -289,6 +360,8 @@ void setup_mesh() {
 
   userScheduler.addTask(taskExecuteCommand);
   taskExecuteCommand.enable();
+  userScheduler.addTask(taskCheckSleep);
+  taskCheckSleep.enable();
 }
 
 void setup()
@@ -297,8 +370,9 @@ void setup()
   pinMode(D2, INPUT_PULLUP);
   mock = digitalRead(D2);
   Serial.begin(115200);
+  delay(1000);
   if (!mock) {
-    Serial.printf("Setting up peripherals");
+    setup_sleep();
     setup_seesaw();
     setup_display();
   }
@@ -327,6 +401,7 @@ void loop()
 {
   mesh.update();
   if (interruptFlag) onInterrupt();
+
 }
 
 void onTap()
