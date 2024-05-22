@@ -1,116 +1,132 @@
 import { css, html, LitElement } from "https://esm.sh/lit@3.1.2";
 import "./smart-question.js";
+import "./smart-room.js";
+import SmartBase from "./smart-base.js";
 
-class SmartQuiz extends LitElement {
-  static get properties() {
-    return {
-      uuid: { type: String },
-      text: { type: String },
-      questions: { type: Array },
-      active: { type: Boolean, reflect: true },
-    };
+export class SmartQuizzes extends SmartBase {
+
+  select(event) {
+    this.item = event.detail;
+    this.save();
   }
 
-  static get styles() {
-    return css`
-        :host {
-          display: block;
-          padding: 16px;
-          border: 1px solid #ddd;
-          border-radius: 8px;
-        }
-        details[open] summary {
-          padding-bottom: 16px;
-        }
-        .details {
-            padding: 16px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            background: #FFAAAA;
-        }
-        .questions {
-            display: flex;
-            flex-direction: column;
-        }
-        `;
+  renderItem(uuid) {
+    return html`
+      <smart-quiz
+        uuid="${uuid}"
+        ?debug=${this.debug}
+        ?active=${this.item === uuid}
+        @active=${this.select.bind(this)}
+        type="question"
+        @open=${e => this.fire('open', e.detail)}
+      ></smart-quiz>
+    `;
   }
+  
+}
+
+export class SmartQuiz extends SmartBase {
+
+  static properties = {
+    ...SmartBase.properties,
+    room: { type: String },
+  };
 
   constructor() {
     super();
-    this.uuid = this.uuid || crypto.randomUUID();
-    this.text = '';
-    this.questions = [];
-    this.active = false;
+    this.room = '';
   }
 
-  connectedCallback() {
-    super.connectedCallback();
-    if (this.uuid) {
-      this.load();
-      this.save();
-    }
+  get rooms() {
+    const uuids = JSON.parse(localStorage.getItem("room")).items || [];
+    return uuids.map(uuid => JSON.parse(localStorage.getItem(uuid)));
   }
 
-  load() {
-    const data = JSON.parse(localStorage.getItem(this.uuid));
-    if (data) {
-      for (const key in data) {
-        this[key] = data[key];
-      }
-    }
-    this.requestUpdate();
-  }
-
-  save() {
-    const data = {};
-    for (const key in this.constructor.properties) {
-      data[key] = this[key];
-    }
-    localStorage.setItem(this.uuid, JSON.stringify(data));
-    this.requestUpdate();
-  }
-
-  addQuestion() {
-    const text = prompt("Enter question");
-    if (text) {
-      const question = document.createElement('smart-question');
-      question.setAttribute("text", text);
-      this.appendChild(question);
-      this.questions.push(question.uuid);
-      this.save();
-    }
-  }
-
-  removeQuestion(event) {
-    const question = event.target;
-    this.questions = this.questions.filter(uuid => uuid !== question.uuid);
-    localStorage.removeItem(question.uuid);
+  select(event) {
+    this.item = event.detail;
     this.save();
   }
 
-  firstUpdated() {
-    if (this.uuid) {
-      this.load();
-    }
-  }
-
-  toggle(event) {
-    this.active = event.target.open;
+  selectRoom(event) {
+    this.room = event.target.value;
+    this.dispatchEvent(new CustomEvent("change-room", { detail: this.room }));
     this.save();
   }
 
-  render() {
+  open(event) {
+    this.dispatchEvent(new CustomEvent("open", { detail: event.detail }));
+  }
+  
+  renderItem(uuid) {
     return html`
-        <details @toggle=${this.toggle.bind(this)} ?open=${this.active}>
-            <summary>${this.text}</summary>
-            <button @click="${this.addQuestion}">Add Question</button>
-            <div class="questions">
-            ${this.questions.map(uuid => html`<smart-question uuid="${uuid}" @remove-question="${this.removeQuestion.bind(this)}"></smart-question>`)}
-            </div>
-        </details>
-        `;
+      <smart-question
+        uuid="${uuid}"
+        ?debug=${this.debug}
+        ?active=${this.item === uuid}
+        @active=${this.select.bind(this)}
+        @open=${e => this.fire('open', e.detail)}
+      ></smart-question>
+    `;
   }
- 
+
+  recordResponse(device, option) {
+    const user = this.class.students.find(student => student.device === device);
+    const question = this.questions.find(question => question.active);
+    question.submit({ option, user });
+  }
+
+  get questions() {
+    return this.items.map(uuid => this.shadowRoot.querySelector(`smart-question[uuid="${uuid}"]`));
+  }
+
+  get class() {
+    const room = this.rooms.find(room => room.uuid === this.room);
+    room.students = room.items.map(uuid => JSON.parse(localStorage.getItem(uuid)))
+    return room;
+  }
+
+  async submit() {
+    const room = this.class;
+    const body = {
+      "test_id": this.uuid,
+      "class_id": room.uuid,
+      "name": this.text,
+      "students": room.students.map(student => {
+        return {
+          "id": student.uuid,
+          "name": student.text,
+          "surname": "",
+        };
+      }),
+      "questions": this.questions.map(question => {
+        return {
+          "id": question.uuid,
+          "text": question.text,
+          "answers": [],
+        };
+      }),
+    }
+    const response = await fetch("/test/record", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }).then(body => body.json());
+  
+    console.log(response);
+  }
+
+  renderContent() {
+    return html`
+      <select @change=${this.selectRoom.bind(this)}>
+        <option value="">Select a room</option>
+        ${this.rooms.map(room => html`
+          <option value="${room.uuid}">${room.text}</option>
+        `)}
+      </select>
+      <button @click=${this.submit.bind(this)}>Submit</button>
+    `;
+  
+  }
 }
 
 customElements.define("smart-quiz", SmartQuiz);
+customElements.define("smart-quizzes", SmartQuizzes);

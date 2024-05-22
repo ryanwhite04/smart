@@ -7,7 +7,23 @@
 </head>
 <body>
     <smart-user debug uuid="ryan_white" text="Ryan White" teacher></smart-user>
-    <smart-user uuid="john_smith" text="John Smith"></smart-user>
+    <smart-user debug uuid="john_smith" text="John Smith"></smart-user>
+    <div>
+        <p>Messages will appear here</p>
+        <ul id="messages">
+
+        </ul>
+    </div>
     <script src="smart-user.js" type="module"></script>
+    <script>
+        document.addEventListener("message", handleMessage);
+        function handleMessage(event) {
+            console.log("Received message", event.detail);
+            const messages = document.getElementById("messages");
+            const message = document.createElement("li");
+            message.textContent = event.detail;
+            messages.appendChild(message);
+        }
+    </script>
 </body>
 </html>

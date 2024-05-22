@@ -1,90 +1,50 @@
-import { css, html, LitElement } from "https://esm.sh/lit@3.1.2";
+import { css, html } from "https://esm.sh/lit@3.1.2";
+import SmartBase from "./smart-base.js";
 
-class SmartQuestion extends LitElement {
+class SmartQuestion extends SmartBase {
   static get properties() {
     return {
-      uuid: { type: String },
-      text: { type: String },
+      ...super.properties,
       options: { type: Array },
       responses: { type: Object },
       hidden: { type: Boolean },
-      active: { type: Boolean, reflect: true },
-      debug: { type: Boolean },
       correct: { type: Number },
+      openned: { type: Boolean, reflect: true },
     };
   }
 
   static get styles() {
-    return css`
-      :host {
-        display: block;
-        padding: 16px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-      }
-      :host[active] {
-        background: lightblue;
-      }
-      details[open] summary {
-        padding-bottom: 16px;
-      }
-      .option {
-        align-items: center;
-        min-width: 100px;
-        margin: 8px 0;
-      }
-      .count {
-        margin-left: 10px;
-        font-weight: bold;
-      }
-      .correct input {
-        background: lightgreen;
-      }
-    `;
+    return [
+      super.styles,
+      css`
+        .option {
+          align-items: center;
+          min-width: 100px;
+          margin: 8px 0;
+        }
+        .count {
+          margin-left: 10px;
+          font-weight: bold;
+        }
+        .correct input {
+          background: lightgreen;
+        }
+      `
+    ];
   }
 
   constructor() {
     super();
-    this.uuid = this.uuid || crypto.randomUUID();
-    this.text = '';
     this.correct = null;
     this.options = [];
     this.responses = {};
-    this.active = false;
     this.hidden = true;
-    this.debug = false;
+    this.openned = false;
   }
 
   // the total number of replies so far
   get replies() {
     return this.responses ? Object.values(this.responses).length : 0; 
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-    if (this.uuid) {
-      this.load();
-      this.save();
-    }
-  }
-
-  load() {
-    const data = JSON.parse(localStorage.getItem(this.uuid));
-    if (data) {
-      for (const key in data) {
-        this[key] = data[key];
-      }
-    }
-    this.requestUpdate();
-  }
-
-  save() {
-    const data = {};
-    for (const key in this.constructor.properties) {
-      data[key] = this[key];
-    }
-    localStorage.setItem(this.uuid, JSON.stringify(data));
-    this.requestUpdate();
   }
 
   addOption() {
@@ -97,15 +57,16 @@ class SmartQuestion extends LitElement {
 
   open() {
     this.correct = null;
-    this.active = true;
+    this.openned = true;
     this.hidden = true;
-    this.dispatchEvent(new CustomEvent("open"));
-    this.save();
+    console.log("smart-question opened", this.options.length);
+    this.fire("open", this.options.length);
+    this.requestUpdate();
   }
 
   close(option) {
     this.correct = option;
-    this.active = false;
+    this.openned = false;
     this.hidden = false;
     this.dispatchEvent(new CustomEvent("close", { detail: this }));
     this.save();
@@ -133,19 +94,10 @@ class SmartQuestion extends LitElement {
   clear() {
     this.responses = {};
     this.correct = null;
-    this.active = false;
+    this.openned = false;
     this.hidden = true;
+
     this.save();
-  }
-
-  firstUpdated() {
-    if (this.uuid) {
-      this.load();
-    }
-  }
-
-  toggle() {
-
   }
 
   updateOption(index, value) {
@@ -172,20 +124,17 @@ class SmartQuestion extends LitElement {
     `;
   }
 
-  render() {
+  renderContent() {
     return html`
-      <details @toggle=${this.toggle}>
-        <summary>${this.text}</summary>
-        <button @click="${this.clear}">Clear responses</button>
-        <button @click="${this.addOption}">Add option</button>
-        ${this.active ? html`
-          <p>Replies: ${this.replies}</p>
-        ` : html`
-          <button @click="${this.open}">Open</button>
-        `}
-        ${this.debug ? html`<p>Number of options: ${this.options.length}</p>` : ''}
-        <ol>${this.options.map(this.renderOption.bind(this))}</ol>
-      </details>
+      <button @click="${this.clear}">Clear responses</button>
+      <button @click="${this.addOption}">Add option</button>
+      ${this.openned ? html`
+        <p>Replies: ${this.replies}</p>
+      ` : html`
+        <button @click="${this.open}">Open</button>
+      `}
+      ${this.debug ? html`<p>Number of options: ${this.options.length}</p>` : ''}
+      <ol>${this.options.map(this.renderOption.bind(this))}</ol>
     `;
   }
 }
