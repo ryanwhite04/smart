@@ -23,7 +23,6 @@
 Adafruit_seesaw ss;
 seesaw_NeoPixel sspixel = seesaw_NeoPixel(1, SS_NEOPIX, NEO_GRB + NEO_KHZ800);
 int32_t encoder_position;
-uint32_t id
 bool prev_button = 0;
 const byte interruptPin = D3;
 const byte fakeGroundPin = D6;
