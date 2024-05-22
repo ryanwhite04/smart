@@ -14,6 +14,7 @@ function handleRoomChange(event) {
 tests.addEventListener("open", event => {
   console.log("open", event.detail);
   device.write(`o:${event.detail}`);
+  device.write(`l:0:255:255`);
 })
 
 function handleMessage(message) {
