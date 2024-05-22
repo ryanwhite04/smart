@@ -279,14 +279,7 @@ void setup_display()
   // display.cp437(true);         // Use full 256 char 'Code Page 437' font 
 }
 
-void setup()
-{
-  randomSeed(analogRead(0));
-
-  Serial.begin(115200);
-  setup_seesaw();
-  setup_display();
-
+void setup_mesh() {
   // mesh.setDebugMsgTypes(ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE);  // all types on
   mesh.setDebugMsgTypes(ERROR | STARTUP); // set before init() so that you can see startup messages
 
@@ -298,6 +291,16 @@ void setup()
 
   userScheduler.addTask(taskExecuteCommand);
   taskExecuteCommand.enable();
+}
+
+void setup()
+{
+  randomSeed(analogRead(0));
+
+  Serial.begin(115200);
+  setup_seesaw();
+  setup_display();
+  setup_mesh();
 }
 
 void onInterrupt()
