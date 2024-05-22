@@ -300,26 +300,27 @@ void setup()
   taskExecuteCommand.enable();
 }
 
-void loop()
+void onInterrupt()
 {
-  // it will run the user scheduler as well
-  mesh.update();
-  if (interruptFlag)
-  {
-    encoder_position = ss.getEncoderPosition();
-    int switch_pressed = ss.digitalRead(SS_SWITCH);
-    
-    interruptFlag = false; // Reset the flag
-    Serial.printf("%d, %u\n", encoder_position, switch_pressed);
-    select(encoder_position - origin_position);
-    if (switch_pressed == 0) {
-      if (chosen == -1) {
-        updateDisplay(String("Choose an option"), 2);
-      } else {
-        submitAnswer(chosen + 1);
-      }
+  encoder_position = ss.getEncoderPosition();
+  int switch_pressed = ss.digitalRead(SS_SWITCH);
+  
+  interruptFlag = false; // Reset the flag
+  Serial.printf("%d, %u\n", encoder_position, switch_pressed);
+  select(encoder_position - origin_position);
+  if (switch_pressed == 0) {
+    if (chosen == -1) {
+      updateDisplay(String("Choose an option"), 2);
+    } else {
+      submitAnswer(chosen + 1);
     }
   }
+}
+
+void loop()
+{
+  mesh.update();
+  if (interruptFlag) onInterrupt();
 }
 
 void onTap()
