@@ -50,6 +50,11 @@ Scheduler userScheduler; // to control your personal task
 
 bool mock = false;
 
+void broadcast(String message)
+{
+  mesh.sendBroadcast(message, true);
+}
+
 void updateDisplay(String message, int line)
 {
   if (mock) {
@@ -88,7 +93,7 @@ void executeCommand()
     }
     else
     {
-      mesh.sendBroadcast(command, true);
+      broadcast(command);
     }
   }
   taskExecuteCommand.setInterval(random(TASK_SECOND * 0.5, TASK_SECOND * 1));
@@ -156,7 +161,7 @@ void submitAnswer(int idx)
   updateDisplay(String("Option ") + res + String(" is submitted"), 5);
   setLightColor(255, 255, 255);
 
-  mesh.sendBroadcast(s);
+  broadcast(s);
 }
 
 void oneTimeTask() {
