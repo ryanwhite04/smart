@@ -230,8 +230,7 @@ void setup_seesaw()
 
   if (!ss.begin(SEESAW_ADDR) || !sspixel.begin(SEESAW_ADDR))
   {
-    mock = true;
-    Serial.println("Couldn't find seesaw on default address, working in mocking mode");
+    Serial.println("Couldn't find seesaw on default address, something is wrong");
     return;
   }
   Serial.println("seesaw started");
@@ -296,10 +295,11 @@ void setup_mesh() {
 void setup()
 {
   randomSeed(analogRead(0));
-
+  pinMode(D2, INPUT_PULLUP);
+  mock = digitalRead(D2);
   Serial.begin(115200);
-  setup_seesaw();
-  setup_display();
+  mock || setup_seesaw();
+  mock || setup_display();
   setup_mesh();
 }
 
