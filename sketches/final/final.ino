@@ -1,13 +1,4 @@
-//************************************************************
-// this is a simple example that uses the painlessMesh library
-//
-// 1. sends a silly message to every node on the mesh at a random time between 1 and 5 seconds
-// 2. prints anything it receives to Serial.print
-//
-//
-//************************************************************
 #include <Preferences.h>
-#include <SPI.h>
 #include <Wire.h>
 #include "painlessMesh.h"
 #include "command.hpp"
@@ -37,13 +28,15 @@ volatile bool interruptFlag = false;
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 // Set up mesh network
-#define MESH_PREFIX "whateverYouLike"
-#define MESH_PASSWORD "somethingSneaky"
+String mesh_prefix;
+String mesh_password;
 #define MESH_PORT 5555
 painlessMesh mesh;
 
 Scheduler userScheduler; // to control your personal task
+
 Preferences preferences; // Preferences object for NVS
+
 String name;
 
 int options = -1;
@@ -100,6 +93,22 @@ void updateDisplay(String message, int line)
   display.display();
 }
 
+void saveSettings() {
+  preferences.begin("smart", false); // Open NVS namespace
+  preferences.putString("name", name); // Save the name
+  preferences.putString("mesh_prefix", mesh_prefix); // Save the mesh prefix
+  preferences.putString("mesh_password", mesh_password); // Save the mesh password
+  preferences.end(); // Close NVS namespace
+}
+
+void loadSettings() {
+  preferences.begin("smart", true); // Open NVS namespace in read-only mode
+  name = preferences.getString("name", "Anonymous"); // Retrieve the name, with "default-name" as fallback
+  mesh_prefix = preferences.getString("mesh_prefix", "prefix"); // Retrieve the mesh prefix, with "defaultPrefix" as fallback
+  mesh_password = preferences.getString("mesh_password", "password"); // Retrieve the mesh password, with "defaultPassword" as fallback
+  preferences.end(); // Close NVS namespace
+}
+
 void executeCommand();
 Task taskExecuteCommand(TASK_SECOND * 0.1, TASK_FOREVER, &executeCommand);
 void executeCommand()
@@ -112,6 +121,18 @@ void executeCommand()
     if (cp.command == "id")
     {
       Serial.printf("id:%u\n", mesh.getNodeId());
+    }
+    else if (cp.command == "m")
+    {
+      if (cp.paramCount == 2)
+      {
+        mesh_prefix = cp.params[0];
+        mesh_password = cp.params[1];
+        saveSettings();
+        mesh.stop();
+        setup_mesh(); // Restart the mesh network with new settings
+        Serial.printf("Mesh settings updated: prefix=%s, password=%s\n", mesh_prefix.c_str(), mesh_password.c_str());
+      }
     }
     else
     {
@@ -135,11 +156,8 @@ void check_sleep() {
     // Go to sleep now
     Serial.println("Going to sleep now");
     esp_deep_sleep_start();
-  } else {
-    Serial.println("Pin is HIGH, device remains awake");
   }
 }
-
 
 // features need to be implemented
 void setLightColor(int r, int g, int b)
@@ -162,8 +180,8 @@ void setOptionsNumber(int num)
     return;
   }
   origin_position = encoder_position;
-  updateDisplay(String(num) + String(" options provided."), 1);
-  updateDisplay(name + String(", what's your option?"), 2);
+  updateDisplay(String(num) + String(" options provided."), 2);
+  updateDisplay(name + String(", what's your option?"), 3);
 }
 
 void select(int num) {
@@ -177,26 +195,15 @@ void select(int num) {
   Serial.printf("select: %d\n", chosen);
   String res;
   res = String(chosen + 1);
-  updateDisplay(String("You chose option ") + res, 2);
+  updateDisplay(String("You chose option ") + res, 3);
 }
 
 void setName(String newName)
 {
   name = newName;
-  preferences.begin("smart", false); // Open NVS namespace
-  preferences.putString("name", name); // Save the name
-  preferences.end(); // Close NVS namespace
+  saveSettings();
   updateDisplay(name, 0);
 }
-
-String loadName() {
-  preferences.begin("smart", true); // Open NVS namespace in read-only mode
-  String name = preferences.getString("name", "Anonymous"); // Retrieve the name, with "default-name" as fallback
-  preferences.end(); // Close NVS namespace
-  updateDisplay(name, 0);
-  return name;
-}
-
 
 void submitAnswer(int idx)
 {
@@ -204,7 +211,7 @@ void submitAnswer(int idx)
   s += String(idx);
   submitted = idx;
   String res = String(submitted);
-  updateDisplay(String("Option ") + res + String(" is submitted"), 5);
+  updateDisplay(String("Option ") + res + String(" is submitted"), 6);
   setLightColor(255, 255, 255);
 
   broadcast(s);
@@ -365,7 +372,7 @@ void setup_mesh() {
   // mesh.setDebugMsgTypes(ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE);  // all types on
   mesh.setDebugMsgTypes(ERROR | STARTUP); // set before init() so that you can see startup messages
 
-  mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT);
+  mesh.init(mesh_prefix.c_str(), mesh_password.c_str(), &userScheduler, MESH_PORT);
   mesh.onReceive(&receivedCallback);
   mesh.onNewConnection(&newConnectionCallback);
   mesh.onChangedConnections(&changedConnectionCallback);
@@ -375,6 +382,7 @@ void setup_mesh() {
   taskExecuteCommand.enable();
   userScheduler.addTask(taskCheckSleep);
   taskCheckSleep.enable();
+  updateDisplay(mesh_prefix.c_str(), 1);
 }
 
 void setup()
@@ -390,8 +398,8 @@ void setup()
     setup_display();
   }
 
-  name = loadName(); // Load the name from NVS
-
+  loadSettings(); // Load the settings from NVS
+  updateDisplay(name, 0);
   setup_mesh();
 }
 
@@ -405,7 +413,7 @@ void onInterrupt()
   select(encoder_position - origin_position);
   if (switch_pressed == 0) {
     if (chosen == -1) {
-      updateDisplay(String("Choose an option"), 2);
+      updateDisplay(String("Choose an option"), 3);
     } else {
       submitAnswer(chosen + 1);
     }
