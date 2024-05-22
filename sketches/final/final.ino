@@ -167,12 +167,12 @@ void oneTimeTask() {
   Serial.printf("mocking: option %d\n", idx);
   submitAnswer(idx);
 }
-Task* taskXXXX;
+Task* task;
 void submitRandomAnswer() {
   Serial.println("mocking");
-  taskXXXX = new Task(5000, TASK_ONCE, &oneTimeTask);
-  userScheduler.addTask(*taskXXXX);
-  taskXXXX->enable();
+  task = new Task(5000, TASK_ONCE, &oneTimeTask);
+  userScheduler.addTask(*task);
+  task->enable();
 }
 
 // Needed for painless library
