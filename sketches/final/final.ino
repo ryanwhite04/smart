@@ -6,7 +6,7 @@
 //
 //
 //************************************************************
-
+#include <Preferences.h>
 #include <SPI.h>
 #include <Wire.h>
 #include "painlessMesh.h"
@@ -43,7 +43,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 painlessMesh mesh;
 
 Scheduler userScheduler; // to control your personal task
-
+Preferences preferences; // Preferences object for NVS
 String name;
 
 int options = -1;
@@ -180,10 +180,23 @@ void select(int num) {
   updateDisplay(String("You chose option ") + res, 2);
 }
 
-void setName(String name)
+void setName(String newName)
 {
+  name = newName;
+  preferences.begin("smart", false); // Open NVS namespace
+  preferences.putString("name", name); // Save the name
+  preferences.end(); // Close NVS namespace
   updateDisplay(name, 0);
 }
+
+String loadName() {
+  preferences.begin("smart", true); // Open NVS namespace in read-only mode
+  String name = preferences.getString("name", "Anonymous"); // Retrieve the name, with "default-name" as fallback
+  preferences.end(); // Close NVS namespace
+  updateDisplay(name, 0);
+  return name;
+}
+
 
 void submitAnswer(int idx)
 {
@@ -376,6 +389,8 @@ void setup()
     setup_seesaw();
     setup_display();
   }
+
+  name = loadName(); // Load the name from NVS
 
   setup_mesh();
 }
