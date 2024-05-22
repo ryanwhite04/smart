@@ -1,13 +1,4 @@
-//************************************************************
-// this is a simple example that uses the painlessMesh library
-//
-// 1. sends a silly message to every node on the mesh at a random time between 1 and 5 seconds
-// 2. prints anything it receives to Serial.print
-//
-//
-//************************************************************
-
-#include <SPI.h>
+#include <Preferences.h>
 #include <Wire.h>
 #include "painlessMesh.h"
 #include "command.hpp"
@@ -37,26 +28,52 @@ volatile bool interruptFlag = false;
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 // Set up mesh network
-#define MESH_PREFIX "whateverYouLike"
-#define MESH_PASSWORD "somethingSneaky"
+String mesh_prefix;
+String mesh_password;
 #define MESH_PORT 5555
 painlessMesh mesh;
 
 Scheduler userScheduler; // to control your personal task
 
+Preferences preferences; // Preferences object for NVS
+
+String name;
+
+int options = -1;
+int chosen = -1;
+int submitted = -1;
+int origin_position = 0;
+Task* task;
 // C3 has no buildin led
 // const byte ledPin = LED_BUILTIN;
 
 bool mock = false;
-bool isHub = false;
+#define BUTTON_PIN GPIO_NUM_2 // GPIO 2 (D1)
+#define BUTTON_PIN_BITMASK (1ULL << BUTTON_PIN)
 
+RTC_DATA_ATTR int bootCount = 0;
+
+void print_wakeup_reason() {
+  esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+
+  switch (wakeup_reason) {
+    case ESP_SLEEP_WAKEUP_EXT0: Serial.println("Wakeup caused by external signal using RTC_IO"); break;
+    case ESP_SLEEP_WAKEUP_EXT1: Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
+    case ESP_SLEEP_WAKEUP_TIMER: Serial.println("Wakeup caused by timer"); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD: Serial.println("Wakeup caused by touchpad"); break;
+    case ESP_SLEEP_WAKEUP_ULP: Serial.println("Wakeup caused by ULP program"); break;
+    default: Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason); break;
+  }
+}
+
+void broadcast(String message)
+{
+  mesh.sendBroadcast(message, true);
+}
 
 void updateDisplay(String message, int line)
 {
   if (mock) {
-    return;
-  }
-  if (!display.availableForWrite()) {
     return;
   }
 
@@ -76,21 +93,24 @@ void updateDisplay(String message, int line)
   display.display();
 }
 
-// User stub
-void sendMessage(); // Prototype so PlatformIO doesn't complain
+void saveSettings() {
+  preferences.begin("smart", false); // Open NVS namespace
+  preferences.putString("name", name); // Save the name
+  preferences.putString("mesh_prefix", mesh_prefix); // Save the mesh prefix
+  preferences.putString("mesh_password", mesh_password); // Save the mesh password
+  preferences.end(); // Close NVS namespace
+}
 
-Task taskSendMessage(TASK_SECOND * 1, TASK_FOREVER, &sendMessage);
-
-void sendMessage()
-{
-  String msg = "Hello from node ";
-  msg += mesh.getNodeId();
-  mesh.sendBroadcast(msg);
-  taskSendMessage.setInterval(random(TASK_SECOND * 1, TASK_SECOND * 5));
+void loadSettings() {
+  preferences.begin("smart", true); // Open NVS namespace in read-only mode
+  name = preferences.getString("name", "Anonymous"); // Retrieve the name, with "default-name" as fallback
+  mesh_prefix = preferences.getString("mesh_prefix", "prefix"); // Retrieve the mesh prefix, with "defaultPrefix" as fallback
+  mesh_password = preferences.getString("mesh_password", "password"); // Retrieve the mesh password, with "defaultPassword" as fallback
+  preferences.end(); // Close NVS namespace
 }
 
 void executeCommand();
-Task taskExecuteCommand(TASK_SECOND * 1, TASK_FOREVER, &executeCommand);
+Task taskExecuteCommand(TASK_SECOND * 0.1, TASK_FOREVER, &executeCommand);
 void executeCommand()
 {
   String command;
@@ -100,15 +120,43 @@ void executeCommand()
     CommandAndParams cp(command);
     if (cp.command == "id")
     {
-      isHub = true;
       Serial.printf("id:%u\n", mesh.getNodeId());
+    }
+    else if (cp.command == "m")
+    {
+      if (cp.paramCount == 2)
+      {
+        mesh_prefix = cp.params[0];
+        mesh_password = cp.params[1];
+        saveSettings();
+        mesh.stop();
+        setup_mesh(); // Restart the mesh network with new settings
+        Serial.printf("Mesh settings updated: prefix=%s, password=%s\n", mesh_prefix.c_str(), mesh_password.c_str());
+      }
     }
     else
     {
-      mesh.sendBroadcast(command, true);
+      broadcast(command);
     }
   }
-  taskExecuteCommand.setInterval(random(TASK_SECOND * 0.5, TASK_SECOND * 1));
+  taskExecuteCommand.setInterval(random(0, TASK_SECOND * 0.1));
+}
+
+void check_sleep();
+Task taskCheckSleep(TASK_SECOND * 1, TASK_FOREVER, &check_sleep);
+void check_sleep() {
+  if (mock) return;
+  if (digitalRead(BUTTON_PIN) == LOW) {
+    Serial.println("Pin is LOW, device will go to sleep");
+
+    // Configure the wake-up source
+    esp_sleep_enable_ext0_wakeup(BUTTON_PIN, 1); // 0 = Low
+    Serial.println("Wake-up source configured");
+
+    // Go to sleep now
+    Serial.println("Going to sleep now");
+    esp_deep_sleep_start();
+  }
 }
 
 // features need to be implemented
@@ -120,58 +168,41 @@ void setLightColor(int r, int g, int b)
   sspixel.show();
 }
 
-String name;
-
-int options = -1;
-int choosed = -1;
-int submitted = -1;
-int origin_position = 0;
 void setOptionsNumber(int num)
 {
   if (num <= 1) {
     return;
   }
   options = num;
-  choosed = -1;
+  chosen = -1;
   submitted = -1;
-
   if (mock) {
     return;
   }
-  updateDisplay("", 5);
   origin_position = encoder_position;
-  updateDisplay(String(num) + String(" options provided."), 1);
-  updateDisplay(name + String(", what's your option?"), 2);
-  setLightColor(255, 255, 0);
+  updateDisplay(String(num) + String(" options provided."), 2);
+  updateDisplay(name + String(", what's your option?"), 3);
 }
 
 void select(int num) {
   if (options <= 1) {
     return;
   }
-  choosed = num % options;
-  if (choosed < 0) {
-    choosed += options;
+  chosen = num % options;
+  if (chosen < 0) {
+    chosen += options;
   }
-  Serial.printf("select: %d\n", choosed);
+  Serial.printf("select: %d\n", chosen);
   String res;
-  // int x = choosed;
-  // while (x > 0) {
-  //   --x;
-  //   res = String((char)((x % 26) + 'A')) + res;
-  //   x /= 26;
-  // }
-  res = String(choosed + 1);
-
-  updateDisplay(String(""), 3);
-  updateDisplay(String("You chose option ") + res, 2);
+  res = String(chosen + 1);
+  updateDisplay(String("You chose option ") + res, 3);
 }
 
 void setName(String newName)
 {
   name = newName;
-  Serial.printf("got a new name: %s\n", name);
-  updateDisplay(String("Hi, ") + name, 1);
+  saveSettings();
+  updateDisplay(name, 0);
 }
 
 void submitAnswer(int idx)
@@ -180,10 +211,10 @@ void submitAnswer(int idx)
   s += String(idx);
   submitted = idx;
   String res = String(submitted);
-  updateDisplay(String("Option ") + res + String(" is submitted"), 5);
+  updateDisplay(String("Option ") + res + String(" is submitted"), 6);
   setLightColor(255, 255, 255);
 
-  mesh.sendBroadcast(s);
+  broadcast(s);
 }
 
 void oneTimeTask() {
@@ -191,12 +222,12 @@ void oneTimeTask() {
   Serial.printf("mocking: option %d\n", idx);
   submitAnswer(idx);
 }
-Task* taskXXXX;
+
 void submitRandomAnswer() {
   Serial.println("mocking");
-  taskXXXX = new Task(5000, TASK_ONCE, &oneTimeTask);
-  userScheduler.addTask(*taskXXXX);
-  taskXXXX->enable();
+  task = new Task(2000, TASK_ONCE, &oneTimeTask);
+  userScheduler.addTask(*task);
+  task->enable();
 }
 
 // Needed for painless library
@@ -242,6 +273,39 @@ void nodeTimeAdjustedCallback(int32_t offset)
   Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(), offset);
 }
 
+void setup_sleep()
+{
+  Serial.println("Setup start");
+
+  // Increment boot number and print it every reboot
+  ++bootCount;
+  Serial.println("Boot number: " + String(bootCount));
+
+  // Print the wakeup reason for ESP32
+  print_wakeup_reason();
+
+  // Set the pin mode with internal pull-up
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  Serial.println("Pin mode set to INPUT_PULLUP");
+
+  // Check the pin state before going to sleep
+  if (digitalRead(BUTTON_PIN) == LOW) {
+    Serial.println("Pin is LOW, device will go to sleep");
+
+    // Configure the wake-up source
+    esp_sleep_enable_ext0_wakeup(BUTTON_PIN, 1); // 0 = Low
+    Serial.println("Wake-up source configured");
+
+    // Go to sleep now
+    Serial.println("Going to sleep now");
+    esp_deep_sleep_start();
+  } else {
+    Serial.println("Pin is HIGH, device will not sleep");
+  }
+
+  Serial.println("Setup complete");
+}
+
 void setup_seesaw()
 {
   pinMode(fakeGroundPin, INPUT);
@@ -254,8 +318,7 @@ void setup_seesaw()
 
   if (!ss.begin(SEESAW_ADDR) || !sspixel.begin(SEESAW_ADDR))
   {
-    mock = true;
-    Serial.println("Couldn't find seesaw on default address, working in mocking mode");
+    Serial.println("Couldn't find seesaw on default address, something is wrong");
     return;
   }
   Serial.println("seesaw started");
@@ -296,57 +359,72 @@ void setup_display()
     Serial.println("Couldn't find SSD1306, working as Smart Hub");
     return;
   }
+  delay(10);
   display.clearDisplay();
-  // display.setTextSize(1);      // Normal 1:1 pixel scale
+  display.setTextSize(1);      // Normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE); // Draw white text
   display.setCursor(0, 0);             // Start at top-left corner
+  display.display();
   // display.cp437(true);         // Use full 256 char 'Code Page 437' font 
 }
 
-void setup()
-{
-  randomSeed(analogRead(0));
-
-  Serial.begin(115200);
-  setup_seesaw();
-  setup_display();
-
+void setup_mesh() {
   // mesh.setDebugMsgTypes(ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE);  // all types on
   mesh.setDebugMsgTypes(ERROR | STARTUP); // set before init() so that you can see startup messages
 
-  mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT);
+  mesh.init(mesh_prefix.c_str(), mesh_password.c_str(), &userScheduler, MESH_PORT);
   mesh.onReceive(&receivedCallback);
   mesh.onNewConnection(&newConnectionCallback);
   mesh.onChangedConnections(&changedConnectionCallback);
   mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
 
-  userScheduler.addTask(taskSendMessage);
   userScheduler.addTask(taskExecuteCommand);
-
-  // taskSendMessage.enable();
   taskExecuteCommand.enable();
+  userScheduler.addTask(taskCheckSleep);
+  taskCheckSleep.enable();
+  updateDisplay(mesh_prefix.c_str(), 1);
+}
+
+void setup()
+{
+  randomSeed(analogRead(0));
+  pinMode(D2, INPUT_PULLUP);
+  mock = digitalRead(D2);
+  Serial.begin(115200);
+  delay(1000);
+  if (!mock) {
+    setup_sleep();
+    setup_seesaw();
+    setup_display();
+  }
+
+  loadSettings(); // Load the settings from NVS
+  updateDisplay(name, 0);
+  setup_mesh();
+}
+
+void onInterrupt()
+{
+  encoder_position = ss.getEncoderPosition();
+  int switch_pressed = ss.digitalRead(SS_SWITCH);
+  
+  interruptFlag = false; // Reset the flag
+  Serial.printf("%d, %u\n", encoder_position, switch_pressed);
+  select(encoder_position - origin_position);
+  if (switch_pressed == 0) {
+    if (chosen == -1) {
+      updateDisplay(String("Choose an option"), 3);
+    } else {
+      submitAnswer(chosen + 1);
+    }
+  }
 }
 
 void loop()
 {
-  // it will run the user scheduler as well
   mesh.update();
-  if (interruptFlag)
-  {
-    encoder_position = ss.getEncoderPosition();
-    int switch_pressed = ss.digitalRead(SS_SWITCH);
-    
-    interruptFlag = false; // Reset the flag
-    Serial.printf("%d, %u\n", encoder_position, switch_pressed);
-    select(encoder_position - origin_position);
-    if (switch_pressed == 0) {
-      if (choosed == -1) {
-        updateDisplay(String("Choose an option"), 2);
-      } else {
-        submitAnswer(choosed + 1);
-      }
-    }
-  }
+  if (interruptFlag) onInterrupt();
+
 }
 
 void onTap()
