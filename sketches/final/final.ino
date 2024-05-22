@@ -23,6 +23,7 @@
 Adafruit_seesaw ss;
 seesaw_NeoPixel sspixel = seesaw_NeoPixel(1, SS_NEOPIX, NEO_GRB + NEO_KHZ800);
 int32_t encoder_position;
+uint32_t id
 bool prev_button = 0;
 const byte interruptPin = D3;
 const byte fakeGroundPin = D6;
@@ -76,21 +77,6 @@ void updateDisplay(String message, int line)
   display.display();
 }
 
-// User stub
-void sendMessage(); // Prototype so PlatformIO doesn't complain
-
-Task taskSendMessage(TASK_SECOND * 1, TASK_FOREVER, &sendMessage);
-
-void sendMessage()
-{
-  String msg = "Hello from node ";
-  msg += mesh.getNodeId();
-  mesh.sendBroadcast(msg);
-  taskSendMessage.setInterval(random(TASK_SECOND * 1, TASK_SECOND * 5));
-}
-
-void executeCommand();
-Task taskExecuteCommand(TASK_SECOND * 1, TASK_FOREVER, &executeCommand);
 void executeCommand()
 {
   String command;
@@ -111,6 +97,9 @@ void executeCommand()
   taskExecuteCommand.setInterval(random(TASK_SECOND * 0.5, TASK_SECOND * 1));
 }
 
+Task taskExecuteCommand(TASK_SECOND * 1, TASK_FOREVER, &executeCommand);
+
+
 // features need to be implemented
 void setLightColor(int r, int g, int b)
 {
@@ -123,7 +112,7 @@ void setLightColor(int r, int g, int b)
 String name;
 
 int options = -1;
-int choosed = -1;
+int chosen = -1;
 int submitted = -1;
 int origin_position = 0;
 void setOptionsNumber(int num)
@@ -132,46 +121,33 @@ void setOptionsNumber(int num)
     return;
   }
   options = num;
-  choosed = -1;
+  chosen = -1;
   submitted = -1;
-
   if (mock) {
     return;
   }
-  updateDisplay("", 5);
   origin_position = encoder_position;
   updateDisplay(String(num) + String(" options provided."), 1);
   updateDisplay(name + String(", what's your option?"), 2);
-  setLightColor(255, 255, 0);
 }
 
 void select(int num) {
   if (options <= 1) {
     return;
   }
-  choosed = num % options;
-  if (choosed < 0) {
-    choosed += options;
+  chosen = num % options;
+  if (chosen < 0) {
+    chosen += options;
   }
-  Serial.printf("select: %d\n", choosed);
+  Serial.printf("select: %d\n", chosen);
   String res;
-  // int x = choosed;
-  // while (x > 0) {
-  //   --x;
-  //   res = String((char)((x % 26) + 'A')) + res;
-  //   x /= 26;
-  // }
-  res = String(choosed + 1);
-
-  updateDisplay(String(""), 3);
+  res = String(chosen + 1);
   updateDisplay(String("You chose option ") + res, 2);
 }
 
-void setName(String newName)
+void setName(String name)
 {
-  name = newName;
-  Serial.printf("got a new name: %s\n", name);
-  updateDisplay(String("Hi, ") + name, 1);
+  updateDisplay(name, 0);
 }
 
 void submitAnswer(int idx)
@@ -320,10 +296,7 @@ void setup()
   mesh.onChangedConnections(&changedConnectionCallback);
   mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
 
-  userScheduler.addTask(taskSendMessage);
   userScheduler.addTask(taskExecuteCommand);
-
-  // taskSendMessage.enable();
   taskExecuteCommand.enable();
 }
 
@@ -340,10 +313,10 @@ void loop()
     Serial.printf("%d, %u\n", encoder_position, switch_pressed);
     select(encoder_position - origin_position);
     if (switch_pressed == 0) {
-      if (choosed == -1) {
+      if (chosen == -1) {
         updateDisplay(String("Choose an option"), 2);
       } else {
-        submitAnswer(choosed + 1);
+        submitAnswer(chosen + 1);
       }
     }
   }
