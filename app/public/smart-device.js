@@ -15,19 +15,12 @@ class SmartDevice extends LitElement {
   
     static get styles() {
       return css`
-        @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0');
         .material-symbols-outlined {
           font-variation-settings:
           'FILL' 0,
           'wght' 400,
           'GRAD' 0,
           'opsz' 24
-        }
-        :host {
-          display: block;
-          padding: 16px;
-          border: 1px solid #ddd;
-          border-radius: 8px;
         }
         button {
           padding: 8px 16px;
@@ -146,8 +139,7 @@ class SmartDevice extends LitElement {
   
     async send() {
       const input = this.shadowRoot.getElementById("message");
-      const response = await this.write(input.value);
-      console.log(response);
+      await this.write(input.value);
       input.value = "";
     }
 
