@@ -49,8 +49,6 @@ Scheduler userScheduler; // to control your personal task
 // const byte ledPin = LED_BUILTIN;
 
 bool mock = false;
-bool isHub = false;
-
 
 void updateDisplay(String message, int line)
 {
@@ -86,7 +84,6 @@ void executeCommand()
     CommandAndParams cp(command);
     if (cp.command == "id")
     {
-      isHub = true;
       Serial.printf("id:%u\n", mesh.getNodeId());
     }
     else
