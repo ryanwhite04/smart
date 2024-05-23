@@ -11,5 +11,17 @@
     <smart-device id="device"></smart-device>
     <smart-quizzes id="tests" uuid="test" debug text="Tests" type="test" fixed active></smart-quizzes>
     <script src="tests.js" type="module"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+              navigator.serviceWorker.register('/public/sw.js')
+              .then(registration => {
+                console.log('ServiceWorker registration successful with scope: ', registration.scope);
+              }, error => {
+                console.log('ServiceWorker registration failed: ', error);
+              });
+            });
+          }
+    </script>
 </body>
 </html>

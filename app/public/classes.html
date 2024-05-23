@@ -8,7 +8,19 @@
 </head>
 <body>
     <h2><a href="index.html">Home</a></h2>
-    <smart-rooms id="rooms" uuid="room" debug text="Classes" type="class" fixed active></smart-rooms>
+    <smart-rooms id="rooms" uuid="room" text="Classes" type="class" fixed active></smart-rooms>
     <script src="classes.js" type="module"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+              navigator.serviceWorker.register('/public/sw.js')
+              .then(registration => {
+                console.log('ServiceWorker registration successful with scope: ', registration.scope);
+              }, error => {
+                console.log('ServiceWorker registration failed: ', error);
+              });
+            });
+          }
+    </script>
 </body>
 </html>

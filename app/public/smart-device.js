@@ -10,6 +10,7 @@ class SmartDevice extends LitElement {
         connected: { type: Boolean, reflect: true },
         messages: { type: Array },
         debug: { type: Boolean, reflect: true },
+        loading: { type: Boolean, reflect: true },
       };
     }
   
@@ -52,7 +53,7 @@ class SmartDevice extends LitElement {
         this.writer = this.port.writable.getWriter();
         this.connected = true;
         await this.write("id");
-        this.read();
+        await this.read();
       } catch (error) {
         console.error("Connection failed:", error);
       }
@@ -77,6 +78,7 @@ class SmartDevice extends LitElement {
     }
   
     async write(data) {
+      this.loading = true;
       if (!this.writer || !this.connected) {
         console.error(
           "Serial port is not connected or writer is not initialized.",
@@ -86,9 +88,12 @@ class SmartDevice extends LitElement {
       try {
         const encodedData = this.encoder.encode(data + "\n"); // Add newline to ensure data is received as intended
         await this.writer.write(encodedData);
+        // add a short delay to allow the device to process the data
+        await new Promise(resolve => setTimeout(resolve, 2000));
       } catch (error) {
         console.error("Failed to write data:", error);
       }
+      this.loading = false;
     }
   
     async read() {
@@ -171,6 +176,7 @@ class SmartDevice extends LitElement {
       return html`
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
         ${this.renderLinkButton(this.connected)}
+        ${this.loading ? html`<span>Connecting...</span>` : ""}
         ${this.debug ? html`
           <div>${this.uuid}</div>
           ${this.renderDebugInputs(this.connected)}

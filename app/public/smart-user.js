@@ -40,10 +40,40 @@ class SmartUser extends SmartBase {
     super.remove();
   }
 
-  write(message) {
+  async write(message) {
     if (this.device) {
-      this.shadowRoot.getElementById("device").write(message);
+      await this.shadowRoot.getElementById("device").write(message);
     }
+  }
+
+  async read() {
+    if (this.device) {
+      return await this.shadowRoot.getElementById("device").read();
+    }
+  }
+
+  get network() {
+    // check local storage for "prefix" and "password"
+    // if they don't exist, generate to uuids and save them
+    // return the prefix and password in the form
+    // { prefix, password }
+    let prefix = localStorage.getItem("prefix");
+    let password = localStorage.getItem("password");
+    if (!prefix || !password) {
+      prefix = crypto.randomUUID();
+      password = crypto.randomUUID();
+      localStorage.setItem("prefix", prefix);
+      localStorage.setItem("password", password);
+    }
+    return { prefix, password };
+  }
+
+  async updateDevice() {
+    const { prefix, password } = this.network;
+    await this.write(`m:${prefix.split("-")[0]}:${password.split("-")[0]}`);
+    // await this.read();
+    await this.write(`n:${this.device}:${this.text}`);
+    // await this.read();
   }
 
   handleMessage(event) {
@@ -51,7 +81,7 @@ class SmartUser extends SmartBase {
     if (message.startsWith("id")) {
       this.device = message.split(":")[1];
       this.save();
-      this.write(`n:${this.device}:${this.text}`)
+      this.updateDevice();
     } else {
       // let the event bubble up
       this.dispatchEvent(new CustomEvent("message", {

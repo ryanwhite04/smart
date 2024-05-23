@@ -9,5 +9,17 @@
 <body>
     <a href="classes.html">Classes</a>
     <a href="tests.html">Tests</a>
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/public/sw.js')
+          .then(registration => {
+            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+          }, error => {
+            console.log('ServiceWorker registration failed: ', error);
+          });
+        });
+      }
+    </script>
 </body>
 </html>
