@@ -6,7 +6,7 @@ class SmartUser extends SmartBase {
   static get properties() {
     return {
       ...super.properties,
-      teacher: { type: Boolean },
+      teacher: { type: Boolean, reflect: true},
       device: { type: String }, // uuid of the last connected device
       bound: { type: Boolean }, // whether the user is bound to a device
     };
@@ -16,6 +16,9 @@ class SmartUser extends SmartBase {
     return [
       super.styles,
       css`
+        :host([teacher]) {
+          background: lightblue;
+        }
         details.connected {
           background: lightgreen;
         }
@@ -95,7 +98,10 @@ class SmartUser extends SmartBase {
   renderContent() {
     return html`
       <label for="teacher">Teacher</label>
-      <input id="teacher" type="checkbox" value="${this.teacher}" @input=${e => this.teacher = e.target.checked} />
+      <input id="teacher" type="checkbox" value="${this.teacher}" @input=${e => {
+        this.teacher = e.target.checked;
+        this.save();
+      }} />
       <p>${this.device}</p>
       <smart-device
         id="device"
