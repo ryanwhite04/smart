@@ -78,7 +78,7 @@ class SmartQuestion extends SmartBase {
       user,
     } = response;
     if (user.teacher) {
-      this.close(option);
+      // this.close(option);
     } else {
       this.responses[user.uuid] = option;
     }
