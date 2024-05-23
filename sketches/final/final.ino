@@ -126,16 +126,19 @@ void executeCommand()
     {
       if (cp.paramCount == 2)
       {
-        mesh_prefix = cp.params[0];
-        mesh_password = cp.params[1];
-        saveSettings();
-        mesh.stop();
-        setup_mesh(); // Restart the mesh network with new settings
-        Serial.printf("Mesh settings updated: prefix=%s, password=%s\n", mesh_prefix.c_str(), mesh_password.c_str());
+        if (mesh_prefix != cp.params[0]) {
+          mesh_prefix = cp.params[0];
+          mesh_password = cp.params[1];
+          saveSettings();
+          mesh.stop();
+          setup_mesh(); // Restart the mesh network with new settings
+        }
+        Serial.println(command);
       }
     }
     else
     {
+      Serial.println(command);
       broadcast(command);
     }
   }
@@ -192,7 +195,6 @@ void select(int num) {
   if (chosen < 0) {
     chosen += options;
   }
-  Serial.printf("select: %d\n", chosen);
   String res;
   res = String(chosen + 1);
   updateDisplay(String("You chose option ") + res, 3);
@@ -219,12 +221,10 @@ void submitAnswer(int idx)
 
 void oneTimeTask() {
   long idx = random(0, options - 1);
-  Serial.printf("mocking: option %d\n", idx);
   submitAnswer(idx);
 }
 
 void submitRandomAnswer() {
-  Serial.println("mocking");
   task = new Task(2000, TASK_ONCE, &oneTimeTask);
   userScheduler.addTask(*task);
   task->enable();
@@ -253,8 +253,9 @@ void receivedCallback(uint32_t from, String &msg)
   }
   if (cp.command == "n")
   {
-    if (cp.params[0].toInt() == mesh.getNodeId())
+    if (strtoul(cp.params[0].c_str(), nullptr, 10) == mesh.getNodeId()) {
       setName(cp.params[1]);
+    }
   }
 }
 
@@ -275,8 +276,6 @@ void nodeTimeAdjustedCallback(int32_t offset)
 
 void setup_sleep()
 {
-  Serial.println("Setup start");
-
   // Increment boot number and print it every reboot
   ++bootCount;
   Serial.println("Boot number: " + String(bootCount));
@@ -286,24 +285,11 @@ void setup_sleep()
 
   // Set the pin mode with internal pull-up
   pinMode(BUTTON_PIN, INPUT_PULLUP);
-  Serial.println("Pin mode set to INPUT_PULLUP");
-
   // Check the pin state before going to sleep
   if (digitalRead(BUTTON_PIN) == LOW) {
-    Serial.println("Pin is LOW, device will go to sleep");
-
-    // Configure the wake-up source
     esp_sleep_enable_ext0_wakeup(BUTTON_PIN, 1); // 0 = Low
-    Serial.println("Wake-up source configured");
-
-    // Go to sleep now
-    Serial.println("Going to sleep now");
     esp_deep_sleep_start();
-  } else {
-    Serial.println("Pin is HIGH, device will not sleep");
   }
-
-  Serial.println("Setup complete");
 }
 
 void setup_seesaw()
@@ -311,8 +297,8 @@ void setup_seesaw()
   pinMode(fakeGroundPin, INPUT);
   pinMode(interruptPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(interruptPin), onTap, FALLING);
-  while (!Serial)
-    delay(10);
+  // while (!Serial)
+  //   delay(10);
 
   Serial.println("Looking for seesaw!");
 
@@ -321,7 +307,6 @@ void setup_seesaw()
     Serial.println("Couldn't find seesaw on default address, something is wrong");
     return;
   }
-  Serial.println("seesaw started");
 
   uint32_t version = ((ss.getVersion() >> 16) & 0xFFFF);
   if (version != 4991)
@@ -331,7 +316,6 @@ void setup_seesaw()
     while (1)
       delay(10);
   }
-  Serial.println("Found Product 4991");
 
   // Set not so bright!
   sspixel.setBrightness(20);
@@ -344,7 +328,6 @@ void setup_seesaw()
   encoder_position = ss.getEncoderPosition();
   // uint32_t mask = ((uint32_t)1 << SS_SWITCH);
   uint32_t mask = (uint32_t)0x1FFFFFF;
-  Serial.println("Turning on interrupts");
   delay(10);
   // ss.pinModeBulk(mask, INPUT_PULLUP);
   ss.setGPIOInterrupts(mask, 1);
@@ -370,7 +353,7 @@ void setup_display()
 
 void setup_mesh() {
   // mesh.setDebugMsgTypes(ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE);  // all types on
-  mesh.setDebugMsgTypes(ERROR | STARTUP); // set before init() so that you can see startup messages
+  mesh.setDebugMsgTypes(ERROR); // set before init() so that you can see startup messages
 
   mesh.init(mesh_prefix.c_str(), mesh_password.c_str(), &userScheduler, MESH_PORT);
   mesh.onReceive(&receivedCallback);
@@ -391,7 +374,7 @@ void setup()
   pinMode(D2, INPUT_PULLUP);
   mock = digitalRead(D2);
   Serial.begin(115200);
-  delay(1000);
+  delay(100);
   if (!mock) {
     setup_sleep();
     setup_seesaw();
@@ -409,7 +392,6 @@ void onInterrupt()
   int switch_pressed = ss.digitalRead(SS_SWITCH);
   
   interruptFlag = false; // Reset the flag
-  Serial.printf("%d, %u\n", encoder_position, switch_pressed);
   select(encoder_position - origin_position);
   if (switch_pressed == 0) {
     if (chosen == -1) {
@@ -430,5 +412,4 @@ void loop()
 void onTap()
 {
   interruptFlag = true; // Set the flag
-  Serial.printf("tapped");
 }
