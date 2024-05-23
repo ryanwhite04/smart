@@ -48,6 +48,10 @@ Task* task;
 // const byte ledPin = LED_BUILTIN;
 
 bool mock = false;
+
+// below code is for enabling hibernation
+// D1 must be pulled high to keep device awake
+// pulling it low will cause it to sleep
 #define BUTTON_PIN GPIO_NUM_2 // GPIO 2 (D1)
 #define BUTTON_PIN_BITMASK (1ULL << BUTTON_PIN)
 
@@ -66,11 +70,13 @@ void print_wakeup_reason() {
   }
 }
 
+// This ensures all broadcasts address the node sending the broadcast too
 void broadcast(String message)
 {
   mesh.sendBroadcast(message, true);
 }
 
+// This function updates the display with a new message on a specific line
 void updateDisplay(String message, int line)
 {
   if (mock) {
@@ -93,6 +99,7 @@ void updateDisplay(String message, int line)
   display.display();
 }
 
+// This function saves the current settings to the NVS
 void saveSettings() {
   preferences.begin("smart", false); // Open NVS namespace
   preferences.putString("name", name); // Save the name
@@ -101,6 +108,7 @@ void saveSettings() {
   preferences.end(); // Close NVS namespace
 }
 
+// This function loads the settings from the NVS
 void loadSettings() {
   preferences.begin("smart", true); // Open NVS namespace in read-only mode
   name = preferences.getString("name", "Anonymous"); // Retrieve the name, with "default-name" as fallback
@@ -109,6 +117,7 @@ void loadSettings() {
   preferences.end(); // Close NVS namespace
 }
 
+// This function parses the command and parameters from a raw string
 void executeCommand();
 Task taskExecuteCommand(TASK_SECOND * 0.1, TASK_FOREVER, &executeCommand);
 void executeCommand()
@@ -145,6 +154,7 @@ void executeCommand()
   taskExecuteCommand.setInterval(random(0, TASK_SECOND * 0.1));
 }
 
+// This function power switch is pulled low to put the device to sleep
 void check_sleep();
 Task taskCheckSleep(TASK_SECOND * 1, TASK_FOREVER, &check_sleep);
 void check_sleep() {
@@ -162,7 +172,8 @@ void check_sleep() {
   }
 }
 
-// features need to be implemented
+// This function sets the color of the light
+// on serial use l:r:g:b
 void setLightColor(int r, int g, int b)
 {
   if (mock) return;
@@ -171,6 +182,8 @@ void setLightColor(int r, int g, int b)
   sspixel.show();
 }
 
+// This function sets the number of options
+// on serial use o:num
 void setOptionsNumber(int num)
 {
   if (num <= 1) {
@@ -187,6 +200,7 @@ void setOptionsNumber(int num)
   updateDisplay(name + String(", what's your option?"), 3);
 }
 
+// This function selects an option
 void select(int num) {
   if (options <= 1) {
     return;
@@ -200,6 +214,7 @@ void select(int num) {
   updateDisplay(String("You chose option ") + res, 3);
 }
 
+// on serial use n:<node_id>:<name> to set a devices name
 void setName(String newName)
 {
   name = newName;
@@ -207,6 +222,7 @@ void setName(String newName)
   updateDisplay(name, 0);
 }
 
+// This function submits an answer
 void submitAnswer(int idx)
 {
   String s = "a:";
@@ -219,11 +235,16 @@ void submitAnswer(int idx)
   broadcast(s);
 }
 
+// This function submits an answer
 void oneTimeTask() {
   long idx = random(0, options - 1);
   submitAnswer(idx);
 }
 
+// This function submits a random answer
+// this is used for headless devices (mock devices) which operate
+// without a display purely for testing purposes to test the maximum
+// number of devices that can operate on the network
 void submitRandomAnswer() {
   task = new Task(2000, TASK_ONCE, &oneTimeTask);
   userScheduler.addTask(*task);
@@ -231,6 +252,7 @@ void submitRandomAnswer() {
 }
 
 // Needed for painless library
+// This handles the received messages
 void receivedCallback(uint32_t from, String &msg)
 {
   Serial.printf("Received from %u msg=%s\n", from, msg.c_str());
@@ -274,6 +296,9 @@ void nodeTimeAdjustedCallback(int32_t offset)
   Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(), offset);
 }
 
+// This function sets up the device to go to sleep
+// it sets up the button pin to wake up the device
+// when the button is pressed
 void setup_sleep()
 {
   // Increment boot number and print it every reboot
@@ -292,6 +317,8 @@ void setup_sleep()
   }
 }
 
+// This function sets up the seesaw
+// which is the rotary encoder breakout with the built in neopixel
 void setup_seesaw()
 {
   pinMode(fakeGroundPin, INPUT);
@@ -334,6 +361,11 @@ void setup_seesaw()
   ss.enableEncoderInterrupt();
 }
 
+// This function sets up the display
+// which is the PiicoDev OLED display SSD1306
+// it initializes the display with the I2C address
+// the device must have the toggle on the back set to the "ON"
+// position on the back to have the correct address
 void setup_display()
 {
   // Initialize with the I2C addr 0x3C (for the 128x64)
@@ -351,6 +383,10 @@ void setup_display()
   // display.cp437(true);         // Use full 256 char 'Code Page 437' font 
 }
 
+// This function sets up the mesh network
+// it initializes the mesh network with the prefix and password
+// when the password or prefix is changed
+// the mesh must first be stopped before calling this again
 void setup_mesh() {
   // mesh.setDebugMsgTypes(ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE);  // all types on
   mesh.setDebugMsgTypes(ERROR); // set before init() so that you can see startup messages
@@ -368,6 +404,9 @@ void setup_mesh() {
   updateDisplay(mesh_prefix.c_str(), 1);
 }
 
+// This function sets up the device
+// it is the main logic and includes a check for the mock
+// which is true if the device is to act without a display or encoder
 void setup()
 {
   randomSeed(analogRead(0));
@@ -386,6 +425,13 @@ void setup()
   setup_mesh();
 }
 
+// This function is called when the interrupt is triggered
+// this requires that D0 on the microcontroller is wired to the 
+// int pin on the rotary encoder breakout board
+// this is the reason why the 3D model enclosure no long fits and
+// must be adjust
+// The interrrupt is required, otherwise putting too much logic
+// in the loop that runs on every loop causes the mesh network to fail
 void onInterrupt()
 {
   encoder_position = ss.getEncoderPosition();
@@ -402,6 +448,9 @@ void onInterrupt()
   }
 }
 
+// This function is the main loop
+// all repetitive tasks such as reading serial input are 
+// handled as tasks instead
 void loop()
 {
   mesh.update();
@@ -409,6 +458,7 @@ void loop()
 
 }
 
+// This function is called when the interrupt is triggered
 void onTap()
 {
   interruptFlag = true; // Set the flag
